@@ -151,6 +151,27 @@ fun CommunityPostDetailScreen(
 }
 
 @Composable
+private fun UserAvatar(
+    name: String,
+    size: androidx.compose.ui.unit.Dp,
+    color: Color
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(50))
+            .background(color),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = name.firstOrNull()?.uppercase() ?: "?",
+            color = BackgroundBlack,
+            fontWeight = FontWeight.Bold,
+            fontSize = (size.value * 0.35f).sp
+        )
+    }
+}
+@Composable
 private fun PostDetailHeader(post: CommunityPost, onLike: () -> Unit, currentUid: String) {
     val postType = runCatching { PostType.valueOf(post.type) }.getOrNull()
     val accentColor = when (postType) {
