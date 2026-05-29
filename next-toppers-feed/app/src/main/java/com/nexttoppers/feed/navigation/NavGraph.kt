@@ -33,6 +33,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nexttoppers.feed.ui.auth.LoginScreen
 import com.nexttoppers.feed.ui.chats.ChatsScreen
+import com.nexttoppers.feed.ui.tests.TestsScreen
 import com.nexttoppers.feed.ui.downloads.DownloadsScreen
 import com.nexttoppers.feed.ui.home.HomeScreen
 import com.nexttoppers.feed.ui.leaderboard.LeaderboardScreen
@@ -76,6 +77,8 @@ object Routes {
 
     const val QUIZ_HOME =
         "quiz_home"
+
+    const val TESTS = "tests"
 
     fun subjectResources(
         subject: String
@@ -369,7 +372,9 @@ private fun MainAppShell(
                 HomeScreen(
                     onNavigateToNotes = {},
                     onNavigateToLectures = {},
-                    onNavigateToTests = {},
+                    onNavigateToTests = {
+                        navController.navigateSafe(Routes.TESTS)
+                    },
                     onNavigateToChats = {
                         navController.navigateSafe(Routes.CHATS)
                     },
@@ -581,6 +586,17 @@ private fun MainAppShell(
 
                 QuizHomeScreen(
                     onNavigateToPlayer = {}
+                )
+            }
+
+            composable(
+                route = Routes.TESTS
+            ) {
+
+                TestsScreen(
+                    onBack = {
+                        navController.popBackStack()
+                    }
                 )
             }
         }

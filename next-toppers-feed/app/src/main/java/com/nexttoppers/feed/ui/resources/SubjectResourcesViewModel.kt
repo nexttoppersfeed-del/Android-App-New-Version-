@@ -12,6 +12,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class SortOrder(val label: String) {
+    LATEST("Latest"),
+    OLDEST("Oldest"),
+    MOST_VIEWED("Most Viewed")
+}
+
 sealed class SubjectResourcesUiState {
     object Loading : SubjectResourcesUiState()
     object Empty : SubjectResourcesUiState()
@@ -33,13 +39,21 @@ class SubjectResourcesViewModel @Inject constructor(
     private val _selectedType = MutableStateFlow<ResourceType?>(null)
     val selectedType: StateFlow<ResourceType?> = _selectedType
 
-    private val _premiumFilter = MutableStateFlow<Boolean?>(null) // null = all, true = premium only, false = free
+    private val _premiumFilter = MutableStateFlow<Boolean?>(null)
     val premiumFilter: StateFlow<Boolean?> = _premiumFilter
+
+    private val _sortOrder = MutableStateFlow(SortOrder.LATEST)
+    val sortOrder: StateFlow<SortOrder> = _sortOrder
 
     private var allItems: List<Resource> = emptyList()
 
     private val _isGridView = MutableStateFlow(false)
     val isGridView: StateFlow<Boolean> = _isGridView
+
+    val hasActiveFilters: Boolean
+        get() = _selectedType.value != null ||
+                _premiumFilter.value != null ||
+                _sortOrder.value != SortOrder.LATEST
 
     init {
         observeResources()
@@ -70,6 +84,18 @@ class SubjectResourcesViewModel @Inject constructor(
         applyFilters()
     }
 
+    fun setSortOrder(order: SortOrder) {
+        _sortOrder.value = order
+        applyFilters()
+    }
+
+    fun clearAllFilters() {
+        _selectedType.value = null
+        _premiumFilter.value = null
+        _sortOrder.value = SortOrder.LATEST
+        applyFilters()
+    }
+
     fun toggleViewMode() {
         _isGridView.value = !_isGridView.value
     }
@@ -81,6 +107,11 @@ class SubjectResourcesViewModel @Inject constructor(
         }
         _premiumFilter.value?.let { isPremium ->
             filtered = filtered.filter { it.premium == isPremium }
+        }
+        filtered = when (_sortOrder.value) {
+            SortOrder.LATEST      -> filtered.sortedByDescending { it.createdAt.seconds }
+            SortOrder.OLDEST      -> filtered.sortedBy { it.createdAt.seconds }
+            SortOrder.MOST_VIEWED -> filtered.sortedByDescending { it.views }
         }
         _uiState.value = if (filtered.isEmpty()) SubjectResourcesUiState.Empty
         else SubjectResourcesUiState.Success(filtered)

@@ -1,6 +1,8 @@
 package com.nexttoppers.feed.data.repository
 
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -20,29 +22,90 @@ class ChatRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) {
-    private val chatsCol = firestore.collection("chats")
+    // privateChatMeta — stores chat metadata (participants, last message, unread counts)
+    private val chatMetaCol    = firestore.collection("privateChatMeta")
+    // privateChats — stores the actual message sub-collections
+    private val privateChatsCol = firestore.collection("privateChats")
+
+    // ── Manual mapping for flexible field names between website and app schemas ─
+
+    private fun mapToChat(doc: DocumentSnapshot): Chat? {
+        val data = doc.data ?: return null
+        return try {
+            val unreadRaw = (data["unread"] ?: data["unreadCount"]) as? Map<*, *>
+            Chat(
+                chatId            = doc.id,
+                type              = data["type"] as? String ?: ChatType.PRIVATE.name,
+                participants      = (data["participants"] as? List<*>)
+                                        ?.filterIsInstance<String>() ?: emptyList(),
+                participantNames  = (data["participantNames"] as? Map<*, *>)
+                                        ?.mapKeys   { it.key as? String ?: "" }
+                                        ?.mapValues { it.value as? String ?: "" }
+                                    ?: emptyMap(),
+                participantPhotos = (data["participantPhotos"] as? Map<*, *>)
+                                        ?.mapKeys   { it.key as? String ?: "" }
+                                        ?.mapValues { it.value as? String ?: "" }
+                                    ?: emptyMap(),
+                lastMessage       = data["lastMessage"] as? String ?: "",
+                lastMessageTime   = data["lastMessageAt"] as? Timestamp
+                                    ?: data["updatedAt"] as? Timestamp
+                                    ?: data["lastMessageTime"] as? Timestamp
+                                    ?: Timestamp.now(),
+                lastMessageSender = data["lastSenderId"] as? String
+                                    ?: data["lastMessageSender"] as? String ?: "",
+                unreadCount       = unreadRaw
+                                        ?.mapKeys { it.key as? String ?: "" }
+                                        ?.mapValues {
+                                            (it.value as? Long)?.toInt()
+                                                ?: (it.value as? Int) ?: 0
+                                        } ?: emptyMap(),
+                pinned            = data["pinned"] as? Boolean ?: false,
+                groupName         = data["groupName"] as? String ?: "",
+                groupPhoto        = data["groupPhoto"] as? String ?: "",
+                createdAt         = data["createdAt"] as? Timestamp ?: Timestamp.now()
+            )
+        } catch (e: Exception) { null }
+    }
+
+    private fun mapToMessage(doc: DocumentSnapshot): ChatMessage? {
+        val data = doc.data ?: return null
+        return try {
+            ChatMessage(
+                messageId     = doc.id,
+                senderId      = data["senderId"] as? String ?: "",
+                senderName    = data["senderName"] as? String ?: "",
+                // privateChats uses "text"; legacy "chats" used "message"
+                message       = data["text"] as? String
+                                ?: data["message"] as? String
+                                ?: data["content"] as? String ?: "",
+                timestamp     = data["timestamp"] as? Timestamp ?: Timestamp.now(),
+                type          = data["type"] as? String ?: "TEXT",
+                seen          = data["seen"] as? Boolean ?: false,
+                deleted       = data["deleted"] as? Boolean ?: false,
+                attachmentUrl = data["attachmentUrl"] as? String ?: ""
+            )
+        } catch (e: Exception) { null }
+    }
 
     // ── Chat list ────────────────────────────────────────────────────────────────
 
     fun observeUserChats(uid: String): Flow<Result<List<Chat>>> = callbackFlow {
-        val query = chatsCol
+        val query = chatMetaCol
             .whereArrayContains("participants", uid)
-            .orderBy("lastMessageTime", Query.Direction.DESCENDING)
+            .orderBy("lastMessageAt", Query.Direction.DESCENDING)
 
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-            val chats = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(Chat::class.java)?.copy(chatId = doc.id) } catch (e: Exception) { null }
-            } ?: emptyList()
+            val chats = snap?.documents?.mapNotNull { mapToChat(it) } ?: emptyList()
             trySend(Result.success(chats))
         }
         awaitClose { listener.remove() }
     }
 
     fun observeChat(chatId: String): Flow<Result<Chat>> = callbackFlow {
-        val listener = chatsCol.document(chatId).addSnapshotListener { snap, err ->
+        val listener = chatMetaCol.document(chatId).addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-            val chat = snap?.toObject(Chat::class.java)?.copy(chatId = snap.id)
+            val chat = snap?.let { mapToChat(it) }
             if (chat != null) trySend(Result.success(chat))
             else trySend(Result.failure(Exception("Chat not found")))
         }
@@ -53,16 +116,14 @@ class ChatRepository @Inject constructor(
 
     fun observeMessages(chatId: String, limit: Long = 50): Flow<Result<List<ChatMessage>>> =
         callbackFlow {
-            val query = chatsCol.document(chatId)
+            val query = privateChatsCol.document(chatId)
                 .collection("messages")
                 .orderBy("timestamp", Query.Direction.ASCENDING)
                 .limitToLast(limit)
 
             val listener = query.addSnapshotListener { snap, err ->
                 if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-                val messages = snap?.documents?.mapNotNull { doc ->
-                    try { doc.toObject(ChatMessage::class.java)?.copy(messageId = doc.id) } catch (e: Exception) { null }
-                } ?: emptyList()
+                val messages = snap?.documents?.mapNotNull { mapToMessage(it) } ?: emptyList()
                 trySend(Result.success(messages))
             }
             awaitClose { listener.remove() }
@@ -70,30 +131,40 @@ class ChatRepository @Inject constructor(
 
     suspend fun sendMessage(chatId: String, message: ChatMessage): Result<String> = runCatching {
         val id = UUID.randomUUID().toString()
-        val newMsg = message.copy(messageId = id)
-        chatsCol.document(chatId)
+        // Write message to privateChats sub-collection using "text" field (website schema)
+        privateChatsCol.document(chatId)
             .collection("messages")
             .document(id)
-            .set(newMsg.toMap())
-            .await()
+            .set(mapOf(
+                "senderId"      to message.senderId,
+                "senderName"    to message.senderName,
+                "text"          to message.message,
+                "timestamp"     to message.timestamp,
+                "type"          to message.type,
+                "seen"          to message.seen,
+                "deleted"       to message.deleted,
+                "attachmentUrl" to message.attachmentUrl
+            )).await()
 
-        chatsCol.document(chatId).update(mapOf(
-            "lastMessage"      to message.message,
-            "lastMessageTime"  to message.timestamp,
-            "lastMessageSender" to message.senderId
+        // Update metadata in privateChatMeta using website field names
+        chatMetaCol.document(chatId).update(mapOf(
+            "lastMessage"    to message.message,
+            "lastMessageAt"  to message.timestamp,
+            "lastSenderId"   to message.senderId,
+            "updatedAt"      to Timestamp.now()
         )).await()
         id
     }
 
     suspend fun markMessagesAsSeen(chatId: String, uid: String): Result<Unit> = runCatching {
-        chatsCol.document(chatId).update("unreadCount.$uid", 0).await()
+        chatMetaCol.document(chatId).update("unread.$uid", 0).await()
     }
 
     suspend fun deleteMessage(chatId: String, messageId: String): Result<Unit> = runCatching {
-        chatsCol.document(chatId)
+        privateChatsCol.document(chatId)
             .collection("messages")
             .document(messageId)
-            .update("deleted", true, "message", "This message was deleted")
+            .update("deleted", true, "text", "This message was deleted")
             .await()
     }
 
@@ -108,18 +179,21 @@ class ChatRepository @Inject constructor(
         otherPhoto: String
     ): Result<String> = runCatching {
         val chatId = if (myUid < otherUid) "${myUid}_${otherUid}" else "${otherUid}_${myUid}"
-        val docRef = chatsCol.document(chatId)
+        val docRef = chatMetaCol.document(chatId)
         val snap = docRef.get().await()
 
         if (!snap.exists()) {
-            val chat = Chat(
-                chatId = chatId,
-                type = ChatType.PRIVATE.name,
-                participants = listOf(myUid, otherUid),
-                participantNames = mapOf(myUid to myName, otherUid to otherName),
-                participantPhotos = mapOf(myUid to myPhoto, otherUid to otherPhoto)
-            )
-            docRef.set(chat.toMap()).await()
+            docRef.set(mapOf(
+                "participants"      to listOf(myUid, otherUid),
+                "participantNames"  to mapOf(myUid to myName, otherUid to otherName),
+                "participantPhotos" to mapOf(myUid to myPhoto, otherUid to otherPhoto),
+                "type"              to ChatType.PRIVATE.name,
+                "lastMessage"       to "",
+                "lastMessageAt"     to Timestamp.now(),
+                "lastSenderId"      to "",
+                "unread"            to mapOf(myUid to 0, otherUid to 0),
+                "createdAt"         to Timestamp.now()
+            )).await()
         }
         chatId
     }
@@ -130,14 +204,15 @@ class ChatRepository @Inject constructor(
         participantNames: Map<String, String>
     ): Result<String> = runCatching {
         val chatId = UUID.randomUUID().toString()
-        val chat = Chat(
-            chatId = chatId,
-            type = ChatType.GROUP.name,
-            participants = participants,
-            participantNames = participantNames,
-            groupName = groupName
-        )
-        chatsCol.document(chatId).set(chat.toMap()).await()
+        chatMetaCol.document(chatId).set(mapOf(
+            "type"             to ChatType.GROUP.name,
+            "groupName"        to groupName,
+            "participants"     to participants,
+            "participantNames" to participantNames,
+            "lastMessage"      to "",
+            "lastMessageAt"    to Timestamp.now(),
+            "createdAt"        to Timestamp.now()
+        )).await()
         chatId
     }
 
@@ -150,7 +225,7 @@ class ChatRepository @Inject constructor(
                 "messageId"  to messageId,
                 "reportedBy" to uid,
                 "reason"     to reason,
-                "timestamp"  to com.google.firebase.Timestamp.now()
+                "timestamp"  to Timestamp.now()
             )).await()
         }
 }

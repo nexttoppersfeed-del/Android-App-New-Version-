@@ -7,8 +7,8 @@ import com.nexttoppers.feed.data.model.PremiumPlan
 import com.nexttoppers.feed.data.model.premiumPlans
 import com.nexttoppers.feed.data.repository.AuthRepository
 import com.nexttoppers.feed.data.repository.PremiumRepository
+import com.nexttoppers.feed.data.repository.PremiumRequestRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -24,7 +24,8 @@ sealed class PurchaseState {
 @HiltViewModel
 class PremiumViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val premiumRepository: PremiumRepository
+    private val premiumRepository: PremiumRepository,
+    private val requestRepository: PremiumRequestRepository
 ) : ViewModel() {
 
     private val _membership = MutableStateFlow(PremiumMembership())
@@ -41,7 +42,13 @@ class PremiumViewModel @Inject constructor(
     private val _showUpgradeDialog = MutableStateFlow(false)
     val showUpgradeDialog: StateFlow<Boolean> = _showUpgradeDialog
 
+    // UPI payment sheet state
+    private val _showUpiSheet = MutableStateFlow(false)
+    val showUpiSheet: StateFlow<Boolean> = _showUpiSheet
+
     private val uid get() = authRepository.currentUser?.uid ?: ""
+    private val userName get() = authRepository.currentUser?.displayName ?: "User"
+    private val userEmail get() = authRepository.currentUser?.email ?: ""
 
     init {
         observeMembership()
@@ -74,16 +81,38 @@ class PremiumViewModel @Inject constructor(
         _showUpgradeDialog.value = false
     }
 
+    // Opens the UPI payment bottom sheet instead of immediately processing
     fun purchase() {
+        if (_selectedPlan.value == null) return
+        if (uid.isEmpty()) return
+        _showUpiSheet.value = true
+    }
+
+    fun dismissUpiSheet() {
+        _showUpiSheet.value = false
+    }
+
+    // Called when user submits the UTR/transaction ID from the UPI sheet
+    fun submitPaymentRequest(utrId: String) {
         val plan = _selectedPlan.value ?: return
         if (uid.isEmpty()) return
+        if (utrId.isBlank()) {
+            _purchaseState.value = PurchaseState.Error("Please enter a valid UTR / transaction ID")
+            return
+        }
+        _showUpiSheet.value = false
         viewModelScope.launch {
             _purchaseState.value = PurchaseState.Processing
-            // Placeholder: simulate payment gateway delay
-            delay(1800L)
-            premiumRepository.activatePremium(uid, plan)
+            requestRepository.submitRequest(
+                userId   = uid,
+                username = userName,
+                userEmail = userEmail,
+                plan     = plan.type.name,
+                amount   = plan.price,
+                utrId    = utrId
+            )
                 .onSuccess { _purchaseState.value = PurchaseState.Success }
-                .onFailure { _purchaseState.value = PurchaseState.Error(it.message ?: "Purchase failed") }
+                .onFailure { _purchaseState.value = PurchaseState.Error(it.message ?: "Submission failed") }
         }
     }
 

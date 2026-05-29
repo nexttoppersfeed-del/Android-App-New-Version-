@@ -1,6 +1,8 @@
 package com.nexttoppers.feed.data.repository
 
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -20,51 +22,81 @@ class CommunityRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) {
-    private val postsCol   = firestore.collection("communityPosts")
+    // communityMessages — live collection used by both website and app
+    private val postsCol    = firestore.collection("communityMessages")
     private val commentsCol = firestore.collection("comments")
     private val repliesCol  = firestore.collection("replies")
 
+    // Manual mapping to handle flexible field names across both website & app schemas
+    private fun mapPost(doc: DocumentSnapshot): CommunityPost? {
+        val data = doc.data ?: return null
+        return try {
+            CommunityPost(
+                postId        = doc.id,
+                userId        = data["userId"] as? String
+                                ?: data["senderId"] as? String ?: "",
+                username      = data["username"] as? String
+                                ?: data["senderName"] as? String ?: "Anonymous",
+                userPhoto     = data["userPhoto"] as? String
+                                ?: data["userAvatar"] as? String
+                                ?: data["photoUrl"] as? String ?: "",
+                type          = data["type"] as? String ?: "DISCUSSION",
+                title         = data["title"] as? String ?: "",
+                content       = data["text"] as? String
+                                ?: data["content"] as? String
+                                ?: data["message"] as? String ?: "",
+                subject       = data["subject"] as? String ?: "",
+                likes         = (data["likes"] as? List<*>)
+                                    ?.filterIsInstance<String>() ?: emptyList(),
+                commentsCount = ((data["replyCount"] ?: data["commentsCount"] ?: 0L) as? Long)
+                                    ?.toInt()
+                                ?: (data["replyCount"] as? Int)
+                                ?: (data["commentsCount"] as? Int) ?: 0,
+                createdAt     = data["timestamp"] as? Timestamp
+                                ?: data["createdAt"] as? Timestamp ?: Timestamp.now(),
+                pinned        = data["pinned"] as? Boolean ?: false,
+                hot           = data["hot"] as? Boolean ?: false,
+                premiumOnly   = data["premiumOnly"] as? Boolean ?: false
+            )
+        } catch (e: Exception) { null }
+    }
+
     // ── Posts ────────────────────────────────────────────────────────────────────
 
-    fun observePosts(filterType: String? = null, limit: Long = 30): Flow<Result<List<CommunityPost>>> =
-        callbackFlow {
-            var query: Query = postsCol.orderBy("createdAt", Query.Direction.DESCENDING).limit(limit)
-            if (!filterType.isNullOrBlank()) query = query.whereEqualTo("type", filterType)
-
-            val listener = query.addSnapshotListener { snap, err ->
-                if (err != null) {
-                    trySend(Result.failure(err))
-                    return@addSnapshotListener
-                }
-                val posts = snap?.documents?.mapNotNull { doc ->
-                    try { doc.toObject(CommunityPost::class.java)?.copy(postId = doc.id) } catch (e: Exception) { null }
-                } ?: emptyList()
-                trySend(Result.success(posts))
-            }
-            awaitClose { listener.remove() }
+    fun observePosts(filterType: String? = null, limit: Long = 50):
+            Flow<Result<List<CommunityPost>>> = callbackFlow {
+        var query: Query = postsCol
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .limit(limit)
+        if (!filterType.isNullOrBlank()) {
+            query = query.whereEqualTo("type", filterType)
         }
-
-    fun observePostsBySubject(subject: String, limit: Long = 30): Flow<Result<List<CommunityPost>>> =
-        callbackFlow {
-            val query = postsCol
-                .whereEqualTo("subject", subject)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(limit)
-
-            val listener = query.addSnapshotListener { snap, err ->
-                if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-                val posts = snap?.documents?.mapNotNull { doc ->
-                    try { doc.toObject(CommunityPost::class.java)?.copy(postId = doc.id) } catch (e: Exception) { null }
-                } ?: emptyList()
-                trySend(Result.success(posts))
-            }
-            awaitClose { listener.remove() }
+        val listener = query.addSnapshotListener { snap, err ->
+            if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
+            val posts = snap?.documents?.mapNotNull { mapPost(it) } ?: emptyList()
+            trySend(Result.success(posts))
         }
+        awaitClose { listener.remove() }
+    }
+
+    fun observePostsBySubject(subject: String, limit: Long = 30):
+            Flow<Result<List<CommunityPost>>> = callbackFlow {
+        val query = postsCol
+            .whereEqualTo("subject", subject)
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .limit(limit)
+        val listener = query.addSnapshotListener { snap, err ->
+            if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
+            val posts = snap?.documents?.mapNotNull { mapPost(it) } ?: emptyList()
+            trySend(Result.success(posts))
+        }
+        awaitClose { listener.remove() }
+    }
 
     fun observePost(postId: String): Flow<Result<CommunityPost>> = callbackFlow {
         val listener = postsCol.document(postId).addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-            val post = snap?.toObject(CommunityPost::class.java)?.copy(postId = snap.id)
+            val post = snap?.let { mapPost(it) }
             if (post != null) trySend(Result.success(post))
             else trySend(Result.failure(Exception("Post not found")))
         }
@@ -73,8 +105,21 @@ class CommunityRepository @Inject constructor(
 
     suspend fun createPost(post: CommunityPost): Result<String> = runCatching {
         val id = UUID.randomUUID().toString()
-        val newPost = post.copy(postId = id)
-        postsCol.document(id).set(newPost.toMap()).await()
+        postsCol.document(id).set(mapOf(
+            "userId"      to post.userId,
+            "username"    to post.username,
+            "userPhoto"   to post.userPhoto,
+            "type"        to post.type,
+            "title"       to post.title,
+            "text"        to post.content,
+            "subject"     to post.subject,
+            "likes"       to post.likes,
+            "replyCount"  to post.commentsCount,
+            "timestamp"   to Timestamp.now(),
+            "pinned"      to post.pinned,
+            "hot"         to post.hot,
+            "premiumOnly" to post.premiumOnly
+        )).await()
         id
     }
 
@@ -96,11 +141,11 @@ class CommunityRepository @Inject constructor(
     suspend fun reportPost(postId: String, reason: String): Result<Unit> = runCatching {
         val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not authenticated"))
         firestore.collection("reports").add(mapOf(
-            "type"      to "post",
-            "targetId"  to postId,
+            "type"       to "post",
+            "targetId"   to postId,
             "reportedBy" to uid,
-            "reason"    to reason,
-            "timestamp" to com.google.firebase.Timestamp.now()
+            "reason"     to reason,
+            "timestamp"  to Timestamp.now()
         )).await()
     }
 
@@ -110,11 +155,11 @@ class CommunityRepository @Inject constructor(
         val query = commentsCol
             .whereEqualTo("postId", postId)
             .orderBy("createdAt", Query.Direction.ASCENDING)
-
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val comments = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(Comment::class.java)?.copy(commentId = doc.id) } catch (e: Exception) { null }
+                try { doc.toObject(Comment::class.java)?.copy(commentId = doc.id) }
+                catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(comments))
         }
@@ -126,7 +171,7 @@ class CommunityRepository @Inject constructor(
         val newComment = comment.copy(commentId = id)
         commentsCol.document(id).set(newComment.toMap()).await()
         postsCol.document(comment.postId)
-            .update("commentsCount", FieldValue.increment(1)).await()
+            .update("replyCount", FieldValue.increment(1)).await()
         id
     }
 
@@ -144,11 +189,11 @@ class CommunityRepository @Inject constructor(
         val query = repliesCol
             .whereEqualTo("commentId", commentId)
             .orderBy("createdAt", Query.Direction.ASCENDING)
-
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val replies = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(Reply::class.java)?.copy(replyId = doc.id) } catch (e: Exception) { null }
+                try { doc.toObject(Reply::class.java)?.copy(replyId = doc.id) }
+                catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(replies))
         }
