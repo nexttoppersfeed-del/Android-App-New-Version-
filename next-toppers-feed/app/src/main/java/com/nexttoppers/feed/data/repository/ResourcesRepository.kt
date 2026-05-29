@@ -4,7 +4,6 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.Resource
 import com.nexttoppers.feed.data.model.ResourceType
 import kotlinx.coroutines.channels.awaitClose
@@ -18,34 +17,60 @@ import javax.inject.Singleton
 class ResourcesRepository @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
-    // files — study materials (notes, PDFs, modules, DPPs)
     private val filesCol    = firestore.collection("files")
-    // lectures — YouTube video lectures
     private val lecturesCol = firestore.collection("lectures")
+
+    // ── Subject alias expansion ────────────────────────────────────────────────
+    // Firestore whereIn supports max 10 values. We cover common storage variants.
+    private fun subjectVariants(subject: String): List<String> {
+        val upper = subject.uppercase()
+        val lower = subject.lowercase()
+        val title = subject.replaceFirstChar { it.uppercaseChar() }
+        val base  = listOf(upper, lower, title)
+        val extra = when (upper) {
+            "MATHS"   -> listOf("Mathematics", "MATHEMATICS", "mathematics", "Math", "MATH")
+            "SST"     -> listOf(
+                "Social Studies", "SOCIAL STUDIES", "social studies",
+                "Social Science", "SOCIAL SCIENCE", "SS"
+            )
+            "SCIENCE" -> listOf("Sciences", "Phy+Chem+Bio")
+            "ENGLISH" -> listOf("English Language", "Eng")
+            "HINDI"   -> listOf("Hindi Language")
+            else      -> emptyList()
+        }
+        return (base + extra).distinct().take(10)
+    }
 
     // ── Manual document mappers ────────────────────────────────────────────────
 
     private fun mapFile(doc: DocumentSnapshot): Resource? {
         val data = doc.data ?: return null
         return try {
+            val rawTitle = data["title"] as? String
+                ?: data["name"] as? String ?: ""
+            val rawType = (data["type"] as? String ?: ResourceType.NOTES.name).uppercase()
             Resource(
                 id           = doc.id,
-                title        = data["title"] as? String ?: "",
+                title        = rawTitle,
                 subject      = (data["subject"] as? String ?: "").uppercase(),
-                type         = (data["type"] as? String ?: ResourceType.NOTES.name).uppercase(),
+                type         = rawType,
                 description  = data["description"] as? String ?: "",
                 thumbnailUrl = data["thumbnailUrl"] as? String
                                ?: data["thumbnail"] as? String ?: "",
                 fileUrl      = data["downloadUrl"] as? String
+                               ?: data["fileUrl"] as? String
                                ?: data["url"] as? String
-                               ?: data["fileUrl"] as? String ?: "",
+                               ?: data["resourceUrl"] as? String ?: "",
                 premium      = data["premium"] as? Boolean ?: false,
-                createdAt    = data["createdAt"] as? Timestamp ?: Timestamp.now(),
-                views        = data["views"] as? Long ?: 0L,
+                createdAt    = data["createdAt"] as? Timestamp
+                               ?: data["timestamp"] as? Timestamp ?: Timestamp.now(),
+                views        = (data["views"] as? Long) ?: 0L,
                 uploadedBy   = data["uploadedBy"] as? String
                                ?: data["createdBy"] as? String ?: "Admin",
                 pageCount    = ((data["pageCount"] ?: 0L) as? Long)?.toInt() ?: 0,
-                tags         = (data["tags"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                tags         = (data["tags"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                folderId     = data["folderId"] as? String
+                               ?: data["parentFolderId"] as? String ?: ""
             )
         } catch (e: Exception) { null }
     }
@@ -53,10 +78,13 @@ class ResourcesRepository @Inject constructor(
     private fun mapLecture(doc: DocumentSnapshot): Resource? {
         val data = doc.data ?: return null
         return try {
+            val rawTitle  = data["title"] as? String ?: data["name"] as? String ?: ""
             val youtubeId = data["youtubeId"] as? String
                             ?: data["youtube_id"] as? String ?: ""
             val videoUrl  = data["videoUrl"] as? String
-                            ?: data["url"] as? String ?: ""
+                            ?: data["url"] as? String
+                            ?: data["fileUrl"] as? String
+                            ?: data["hlsUrl"] as? String ?: ""
             val thumbUrl  = data["thumbnail"] as? String
                             ?: data["thumbnailUrl"] as? String
                             ?: if (youtubeId.isNotEmpty())
@@ -64,7 +92,7 @@ class ResourcesRepository @Inject constructor(
                                else ""
             Resource(
                 id           = doc.id,
-                title        = data["title"] as? String ?: "",
+                title        = rawTitle,
                 subject      = (data["subject"] as? String ?: "").uppercase(),
                 type         = ResourceType.LECTURE.name,
                 description  = data["description"] as? String ?: "",
@@ -75,73 +103,37 @@ class ResourcesRepository @Inject constructor(
                     else                   -> ""
                 },
                 premium      = data["premium"] as? Boolean ?: false,
-                createdAt    = data["createdAt"] as? Timestamp ?: Timestamp.now(),
-                views        = data["views"] as? Long ?: 0L,
+                createdAt    = data["createdAt"] as? Timestamp
+                               ?: data["timestamp"] as? Timestamp ?: Timestamp.now(),
+                views        = (data["views"] as? Long) ?: 0L,
                 uploadedBy   = data["uploadedBy"] as? String
                                ?: data["createdBy"] as? String ?: "Admin",
                 duration     = data["duration"] as? String ?: "",
-                tags         = (data["tags"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                tags         = (data["tags"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                youtubeId    = youtubeId
             )
         } catch (e: Exception) { null }
     }
 
     // ── Realtime by subject — merges files + lectures ─────────────────────────
+    // NOTE: No orderBy on the Firestore query to avoid composite-index requirement.
+    // Sorting is done client-side in mergeAndSend().
 
     fun observeBySubject(subject: String): Flow<Result<List<Resource>>> = callbackFlow {
-        val subjectUpper = subject.uppercase()
-        val subjectVariants = listOf(
-            subjectUpper,
-            subject.lowercase(),
-            subject.replaceFirstChar { it.uppercaseChar() }
-        ).distinct()
+        val variants = subjectVariants(subject)
+
         var filesItems: List<Resource>   = emptyList()
         var lectureItems: List<Resource> = emptyList()
 
         fun mergeAndSend() {
             val merged = (filesItems + lectureItems)
+                .distinctBy { it.id }
                 .sortedByDescending { it.createdAt.seconds }
             trySend(Result.success(merged))
         }
 
         val filesListener = filesCol
-            .whereIn("subject", subjectVariants)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(50)
-            .addSnapshotListener { snap, err ->
-                if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-                filesItems = snap?.documents?.mapNotNull { mapFile(it) } ?: emptyList()
-                mergeAndSend()
-            }
-
-        val lecturesListener = lecturesCol
-            .whereIn("subject", subjectVariants)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(30)
-            .addSnapshotListener { snap, _ ->
-                lectureItems = snap?.documents?.mapNotNull { mapLecture(it) } ?: emptyList()
-                mergeAndSend()
-            }
-
-        awaitClose {
-            filesListener.remove()
-            lecturesListener.remove()
-        }
-    }
-
-    // ── All resources (for search & global feed) — merges files + lectures ────
-
-    fun observeAll(): Flow<Result<List<Resource>>> = callbackFlow {
-        var filesItems: List<Resource>   = emptyList()
-        var lectureItems: List<Resource> = emptyList()
-
-        fun mergeAndSend() {
-            val merged = (filesItems + lectureItems)
-                .sortedByDescending { it.createdAt.seconds }
-            trySend(Result.success(merged))
-        }
-
-        val filesListener = filesCol
-            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .whereIn("subject", variants)
             .limit(80)
             .addSnapshotListener { snap, err ->
                 if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
@@ -150,9 +142,10 @@ class ResourcesRepository @Inject constructor(
             }
 
         val lecturesListener = lecturesCol
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(40)
-            .addSnapshotListener { snap, _ ->
+            .whereIn("subject", variants)
+            .limit(50)
+            .addSnapshotListener { snap, err ->
+                if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
                 lectureItems = snap?.documents?.mapNotNull { mapLecture(it) } ?: emptyList()
                 mergeAndSend()
             }
@@ -163,30 +156,60 @@ class ResourcesRepository @Inject constructor(
         }
     }
 
-    // ── By type (within subject) ───────────────────────────────────────────────
+    // ── All resources — merges files + lectures ────────────────────────────────
+
+    fun observeAll(): Flow<Result<List<Resource>>> = callbackFlow {
+        var filesItems: List<Resource>   = emptyList()
+        var lectureItems: List<Resource> = emptyList()
+
+        fun mergeAndSend() {
+            val merged = (filesItems + lectureItems)
+                .distinctBy { it.id }
+                .sortedByDescending { it.createdAt.seconds }
+            trySend(Result.success(merged))
+        }
+
+        val filesListener = filesCol
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(80)
+            .addSnapshotListener { snap, err ->
+                if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
+                filesItems = snap?.documents?.mapNotNull { mapFile(it) } ?: emptyList()
+                mergeAndSend()
+            }
+
+        val lecturesListener = lecturesCol
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(40)
+            .addSnapshotListener { snap, err ->
+                if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
+                lectureItems = snap?.documents?.mapNotNull { mapLecture(it) } ?: emptyList()
+                mergeAndSend()
+            }
+
+        awaitClose {
+            filesListener.remove()
+            lecturesListener.remove()
+        }
+    }
+
+    // ── By type (within subject) — client-side type filtering ──────────────────
 
     suspend fun getBySubjectAndType(subject: String, type: String): Result<List<Resource>> =
         runCatching {
-            val subjectUpper    = subject.uppercase()
-            val typeUpper       = type.uppercase()
-            val subjectVariants = listOf(
-                subjectUpper,
-                subject.lowercase(),
-                subject.replaceFirstChar { it.uppercaseChar() }
-            ).distinct()
+            val variants  = subjectVariants(subject)
+            val typeUpper = type.uppercase()
             if (typeUpper == ResourceType.LECTURE.name) {
                 val snap = lecturesCol
-                    .whereIn("subject", subjectVariants)
-                    .orderBy("createdAt", Query.Direction.DESCENDING)
-                    .limit(30).get().await()
+                    .whereIn("subject", variants)
+                    .limit(50).get().await()
                 snap.documents.mapNotNull { mapLecture(it) }
             } else {
                 val snap = filesCol
-                    .whereIn("subject", subjectVariants)
-                    .whereEqualTo("type", typeUpper)
-                    .orderBy("createdAt", Query.Direction.DESCENDING)
-                    .limit(50).get().await()
+                    .whereIn("subject", variants)
+                    .limit(80).get().await()
                 snap.documents.mapNotNull { mapFile(it) }
+                    .filter { it.type.equals(typeUpper, ignoreCase = true) }
             }
         }
 
@@ -220,10 +243,10 @@ class ResourcesRepository @Inject constructor(
 
     suspend fun getRecent(limit: Long = 10): Result<List<Resource>> = runCatching {
         val filesSnap = filesCol
-            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .limit(limit).get().await()
         val lectureSnap = lecturesCol
-            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .limit(limit / 2 + 1).get().await()
 
         (filesSnap.documents.mapNotNull { mapFile(it) }

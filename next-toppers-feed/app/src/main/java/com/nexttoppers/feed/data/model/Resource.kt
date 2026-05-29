@@ -32,9 +32,11 @@ data class Resource(
     val createdAt: Timestamp = Timestamp.now(),
     val views: Long = 0L,
     val uploadedBy: String = "Admin",
-    val duration: String = "",       // for lectures, e.g. "45 min"
-    val pageCount: Int = 0,          // for PDFs/notes
-    val tags: List<String> = emptyList()
+    val duration: String = "",
+    val pageCount: Int = 0,
+    val tags: List<String> = emptyList(),
+    val folderId: String = "",
+    val youtubeId: String = ""
 ) {
     fun subjectEnum(): ResourceSubject? =
         ResourceSubject.values().firstOrNull { it.name.equals(subject, ignoreCase = true) }
@@ -43,4 +45,12 @@ data class Resource(
         ResourceType.values().firstOrNull { it.name.equals(type, ignoreCase = true) }
 
     fun isLecture() = type.equals(ResourceType.LECTURE.name, ignoreCase = true)
+
+    fun isYouTube() = fileUrl.contains("youtu.be") || fileUrl.contains("youtube.com")
+
+    fun isHls() = fileUrl.endsWith(".m3u8") || fileUrl.contains(".m3u8?")
+
+    fun hasPlayableUrl() = fileUrl.isNotEmpty()
+
+    fun hasDownloadableUrl() = fileUrl.isNotEmpty() && !isYouTube() && !isLecture()
 }

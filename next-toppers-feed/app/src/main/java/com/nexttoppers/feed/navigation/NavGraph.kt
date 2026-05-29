@@ -38,6 +38,7 @@ import com.nexttoppers.feed.ui.tests.TestsScreen
 import com.nexttoppers.feed.ui.downloads.DownloadsScreen
 import com.nexttoppers.feed.ui.home.HomeScreen
 import com.nexttoppers.feed.ui.leaderboard.LeaderboardScreen
+import com.nexttoppers.feed.ui.lecture.LecturePlayerScreen
 import com.nexttoppers.feed.ui.pdf.PdfViewerScreen
 import com.nexttoppers.feed.ui.profile.ProfileScreen
 import com.nexttoppers.feed.ui.quiz.QuizHomeScreen
@@ -51,6 +52,7 @@ import com.nexttoppers.feed.ui.theme.NeonGreen
 import com.nexttoppers.feed.ui.theme.SurfaceDark
 import com.nexttoppers.feed.ui.theme.TextMuted
 import com.nexttoppers.feed.util.AppLogger
+import java.net.URLDecoder
 import java.net.URLEncoder
 
 object Routes {
@@ -83,7 +85,16 @@ object Routes {
 
     const val CHAT = "chat/{chatId}"
 
+    const val LECTURE_PLAYER =
+        "lecture_player?url={url}&title={title}"
+
     fun chat(chatId: String) = "chat/$chatId"
+
+    fun lecturePlayer(url: String, title: String): String {
+        val encodedUrl   = URLEncoder.encode(url,   "UTF-8")
+        val encodedTitle = URLEncoder.encode(title, "UTF-8")
+        return "lecture_player?url=$encodedUrl&title=$encodedTitle"
+    }
 
     fun subjectResources(
         subject: String
@@ -568,6 +579,13 @@ private fun MainAppShell(
                                 localPath
                             )
                         )
+                    },
+
+                    onPlayLecture = { url, title ->
+
+                        navController.navigateSafe(
+                            Routes.lecturePlayer(url, title)
+                        )
                     }
                 )
             }
@@ -600,6 +618,24 @@ private fun MainAppShell(
                     onBack = {
                         navController.popBackStack()
                     }
+                )
+            }
+
+            composable(
+                route = Routes.LECTURE_PLAYER,
+                arguments = listOf(
+                    navArgument("url") {
+                        type         = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument("title") {
+                        type         = NavType.StringType
+                        defaultValue = "Lecture"
+                    }
+                )
+            ) {
+                LecturePlayerScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
 
