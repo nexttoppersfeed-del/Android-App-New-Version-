@@ -1,0 +1,1 @@
+- [Next Toppers Feed — Prompt history](ntf-prompt-history.md) — Android Kotlin/Compose app; prompts add features incrementally, never rewrite architecture.

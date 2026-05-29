@@ -1,0 +1,46 @@
+workflows:
+  android-release:
+    name: Next Toppers Feed Release APK
+
+    environment:
+      java: 17
+
+      vars:
+        CM_KEY_ALIAS: nexttoppers
+        CM_KEYSTORE_PASSWORD: myhouse$1121
+        CM_KEY_PASSWORD: myhouse$1121
+
+    scripts:
+
+      - name: Give Gradle Permission
+        script: |
+          chmod +x next-toppers-feed/gradlew
+
+      - name: Create key.properties
+        script: |
+          cat > next-toppers-feed/key.properties <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=../nexttoppers-release.jks
+          EOF
+
+      - name: Print Keystore SHA1
+        script: |
+          keytool -list -v \
+          -keystore nexttoppers-release.jks \
+          -alias $CM_KEY_ALIAS \
+          -storepass $CM_KEYSTORE_PASSWORD \
+          -keypass $CM_KEY_PASSWORD
+
+      - name: Build Release APK
+        script: |
+          cd next-toppers-feed
+          ./gradlew assembleRelease
+
+      - name: Show APK Files
+        script: |
+          find next-toppers-feed -name "*.apk"
+
+    artifacts:
+      - next-toppers-feed/app/build/outputs/**/*.apk

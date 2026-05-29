@@ -1,0 +1,34 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FIREBASE STORAGE — DEPRECATED / NOT USED
+// Firebase project: aarambh26-27
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Firebase Storage has been REMOVED from this project.
+//
+// All file access uses:
+//   • External URLs (direct links, CDN, website-hosted)
+//   • Firestore document fields (Base64 for lightweight images only)
+//
+// Lightweight Base64 usage (in Firestore documents):
+//   • bannerBase64         — announcement / site banners
+//   • popupImageBase64     — subject popups
+//   • paymentScreenshotBase64 — premium payment proof (max ~500KB decoded)
+//   • thumbnailUrl         — small thumbnails (prefer external URL)
+//
+// DO NOT re-enable Firebase Storage unless moving to Blaze plan.
+// Free-tier quota: 5 GB storage, 1 GB/day downloads — insufficient for PDFs.
+//
+// If Storage is re-enabled in the future, restore rules from git history.
+// Commit: see PROMPT_12_CHANGELOG.md for reference.
+// ─────────────────────────────────────────────────────────────────────────────
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Deny all Storage access — this project uses Firestore + external URLs only
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

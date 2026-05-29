@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App identity -->
+    <string name="app_name">Next Toppers Feed</string>
+    <string name="app_version">2.0.0</string>
+
+    <!-- Auth -->
+    <string name="default_web_client_id">42465208642-8pr419mkv4b1rd2s2fs45v8t0g36gm5t.apps.googleusercontent.com</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="sign_out">Sign Out</string>
+
+    <!-- Support & feedback -->
+    <string name="support_email">nexttoppersfeed@gmail.com</string>
+    <string name="website_url">https://nexttopper-feed.pages.dev</string>
+    <string name="report_issue_subject">Bug Report: Next Toppers Feed</string>
+    <string name="feedback_subject">App Feedback: Next Toppers Feed</string>
+
+    <!-- Settings labels -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_push_notifications">Push Notifications</string>
+    <string name="settings_downloads">Downloads &amp; Storage</string>
+    <string name="settings_wifi_only">Wi-Fi Only Downloads</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_support">Support &amp; Feedback</string>
+    <string name="settings_legal">Legal</string>
+    <string name="settings_account">Account</string>
+    <string name="settings_report_issue">Report an Issue</string>
+    <string name="settings_feedback">App Feedback</string>
+    <string name="settings_share">Share App</string>
+    <string name="settings_privacy_policy">Privacy Policy</string>
+    <string name="settings_terms">Terms of Service</string>
+    <string name="settings_about">About Next Toppers Feed</string>
+    <string name="settings_delete_account">Delete Account</string>
+    <string name="settings_clear_cache">Clear Cache</string>
+
+    <!-- Error messages -->
+    <string name="error_network">No internet connection. Please check your network.</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_timeout">Request timed out. Please try again.</string>
+    <string name="error_auth">Authentication failed. Please sign in again.</string>
+    <string name="error_permission_denied">You don\'t have permission to access this content.</string>
+    <string name="error_not_found">The requested content was not found.</string>
+
+    <!-- Loading messages -->
+    <string name="loading_default">Loading…</string>
+    <string name="loading_signing_in">Signing you in…</string>
+    <string name="loading_processing">Processing…</string>
+    <string name="loading_uploading">Uploading…</string>
+    <string name="loading_downloading">Downloading…</string>
+    <string name="loading_more">Loading more…</string>
+
+    <!-- Empty states -->
+    <string name="empty_downloads">No offline files yet</string>
+    <string name="empty_notifications">You\'re all caught up!</string>
+    <string name="empty_leaderboard">No data yet</string>
+    <string name="empty_community">No posts yet — be the first!</string>
+    <string name="empty_chats">No conversations yet</string>
+
+    <!-- Premium -->
+    <string name="premium_title">Go Premium</string>
+    <string name="premium_subtitle">Unlock everything</string>
+    <string name="premium_upgrade_success">Welcome to Premium!</string>
+
+    <!-- Content descriptions (accessibility) -->
+    <string name="cd_back_button">Go back</string>
+    <string name="cd_profile_photo">Profile photo</string>
+    <string name="cd_app_logo">Next Toppers Feed logo</string>
+    <string name="cd_send_message">Send message</string>
+    <string name="cd_download">Download resource</string>
+    <string name="cd_share">Share</string>
+    <string name="cd_menu">Open menu</string>
+    <string name="cd_notifications">Notifications</string>
+    <string name="cd_premium_badge">Premium member</string>
+    <string name="cd_streak_fire">Current streak</string>
+
+    <!-- Share text -->
+    <string name="share_app_text">📚 Study smarter with Next Toppers Feed — Notes, Quizzes &amp; Rankings!\nhttps://nexttopper-feed.pages.dev</string>
+</resources>

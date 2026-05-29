@@ -1,0 +1,679 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Next Toppers Feed — UNIFIED Production Firestore Security Rules
+// Firebase project : aarambh26-27
+// Supports        : Android App (Firebase Android SDK) + Website (Firebase Web SDK)
+// Last updated    : Prompt 12 — Storage-free, shared architecture
+//
+// Architecture notes
+//   • Firebase Storage is NOT used. All files are external URLs / Base64.
+//   • Admin status is stored in TWO places for cross-platform compat:
+//       1. users/{uid}.isAdmin == true          (Android-first source of truth)
+//       2. admins/{uid}.role in ['admin','owner'] (Website-first source of truth)
+//     Both are checked; write admin grants to BOTH documents when onboarding.
+//   • Premium status lives in users/{uid}.isPremium + premiumActive (shared).
+//   • Payment screenshots are stored as Base64 strings in premiumRequests docs.
+//   • Resource files are external URLs — no Storage bucket reads.
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // HELPER FUNCTIONS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // Is the request from a signed-in user?
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Is the request from the owner of this specific user document?
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Is the requesting user an admin?
+    // Checks BOTH storage mechanisms for cross-platform compatibility:
+    //   1. users/{uid}.isAdmin  — Android app primary mechanism
+    //   2. admins/{uid}.role    — Website primary mechanism
+    // Short-circuit: if users.isAdmin is true, admins collection is NOT read.
+    function isAdmin() {
+      return isSignedIn() && (
+        // Mechanism 1: users collection (Android + shared)
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true)
+        ||
+        // Mechanism 2: admins collection (Website + legacy)
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('role', '') in ['admin', 'owner'])
+      );
+    }
+
+    // Is the requesting user an active premium member?
+    // Checks users.isPremium AND users.premiumActive (both must be true).
+    function isPremium() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isPremium', false) == true &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('premiumActive', false) == true;
+    }
+
+    // Is the user NOT banned?
+    function isNotBanned() {
+      return isSignedIn() && (
+        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('banned', false) == false
+      );
+    }
+
+    // Can the user access premium resources?
+    function canAccessPremium() {
+      return isPremium() || isAdmin();
+    }
+
+    // Check if a Base64 string is within size limit (characters ≈ bytes before decode)
+    // 700 000 chars ≈ ~500 KB decoded image — safe for payment screenshots
+    function isValidBase64Size(str, maxChars) {
+      return str.size() <= maxChars;
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // USERS  (shared: Android + Website)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields (Android):  uid, name, email, photoUrl, xp, level, streak, isAdmin,
+    //                    isPremium, premiumActive, premiumEnd, premiumStart,
+    //                    premiumType, banned, bannedAt, banReason
+    // Fields (Website):  same — DO NOT create separate structures
+    // ──────────────────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      // All signed-in users can read any profile (for leaderboard names/photos).
+      allow read: if isSignedIn();
+
+      // Only the user themselves can create their own document.
+      // They cannot self-assign admin or banned status.
+      allow create: if isOwner(userId) &&
+        request.resource.data.keys().hasAll(['uid', 'name', 'email']) &&
+        request.resource.data.get('isAdmin', false) == false &&
+        request.resource.data.get('banned', false) == false;
+
+      // Users can update their own profile EXCEPT protected admin/ban fields.
+      // Admins can update any field.
+      allow update: if (
+          isOwner(userId) &&
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['isAdmin', 'banned', 'bannedAt', 'banReason',
+                     'isPremium', 'premiumActive', 'premiumEnd',
+                     'premiumStart', 'premiumType'])
+        ) || isAdmin();
+
+      allow delete: if isAdmin();
+
+      // Subcollection: announcements the user has seen
+      match /seenAnnouncements/{annId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Subcollection: user achievements / badges
+      match /achievements/{achId} {
+        allow read:  if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) || isAdmin();
+      }
+
+      // Subcollection: user notification preferences
+      match /notificationPrefs/{prefId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ADMINS  (Website primary — Android reads for UI, writes via admin panel)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: role ('admin' | 'owner'), uid, displayName, grantedAt
+    // NOTE: Granting admin MUST also set users/{uid}.isAdmin = true for Android.
+    // ──────────────────────────────────────────────────────────────────────────
+    match /admins/{userId} {
+      allow read:  if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // LEADERBOARD  (shared)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: uid, name, photoUrl, xp, level, streak, premium, rank
+    // ──────────────────────────────────────────────────────────────────────────
+    match /leaderboard/{userId} {
+      allow read: if isSignedIn();
+      // Users can only write their own entry; admins can write any.
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if (isSignedIn() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // RESOURCES  (shared — NO Firebase Storage, external URLs only)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: title, description, subject, type, premium, downloadUrl,
+    //         thumbnailUrl, createdAt, createdBy, views, downloads
+    // downloadUrl  = external URL / CDN / website-hosted link (NOT Storage)
+    // thumbnailUrl = external URL or lightweight Base64 thumbnail
+    // ──────────────────────────────────────────────────────────────────────────
+    match /resources/{resourceId} {
+      // Free resources: all signed-in users.
+      // Premium resources: only premium users or admins.
+      allow read: if isSignedIn() && (
+        resource.data.get('premium', false) == false ||
+        canAccessPremium()
+      );
+
+      allow create, update, delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ANNOUNCEMENTS  (shared)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: title, body, type, imageUrl or bannerBase64, pinned, createdAt
+    // bannerBase64 = lightweight Base64 image allowed (banners, popups)
+    // ──────────────────────────────────────────────────────────────────────────
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // PREMIUM REQUESTS  (shared — Base64 payment screenshots)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: userId, username, userEmail, plan, utrId, status,
+    //         paymentScreenshotBase64, createdAt, reviewedAt, reviewedBy
+    // paymentScreenshotBase64: compressed JPEG/PNG, max ~500KB decoded (700K chars)
+    // status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    // ──────────────────────────────────────────────────────────────────────────
+    match /premiumRequests/{requestId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'PENDING' &&
+        request.resource.data.keys().hasAll([
+          'userId', 'username', 'userEmail', 'plan', 'status', 'createdAt'
+        ]) &&
+        // Validate Base64 screenshot size if present
+        (!request.resource.data.keys().hasAny(['paymentScreenshotBase64']) ||
+          isValidBase64Size(request.resource.data.paymentScreenshotBase64, 700000));
+
+      // Only admins can update status (approve/reject)
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // PREMIUM USERS  (Website — tracks approved premium members)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: uid, plan, activatedAt, expiresAt, activatedBy
+    // Note: Android uses users.isPremium; this collection is for website tracking.
+    // ──────────────────────────────────────────────────────────────────────────
+    match /premiumUsers/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS  (shared — per-user, userId-scoped)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: userId, title, body, type, read, createdAt, actionRoute
+    // ──────────────────────────────────────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read, update: if isSignedIn() &&
+        resource.data.userId == request.auth.uid;
+      allow create: if isAdmin();
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // CHATS — Direct Messages  (Android app)
+    // ══════════════════════════════════════════════════════════════════════════
+    // chatId format: {uid1}_{uid2} sorted alphabetically
+    // Fields: participants (array), lastMessage, lastMessageAt, unreadCounts
+    // ──────────────────────────────────────────────────────────────────────────
+    match /chats/{chatId} {
+      allow read, write: if isSignedIn() && isNotBanned() &&
+        (resource == null || request.auth.uid in resource.data.participants);
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() &&
+          request.auth.uid in
+            get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+
+        allow create: if isSignedIn() && isNotBanned() &&
+          request.auth.uid in
+            get(/databases/$(database)/documents/chats/$(chatId)).data.participants &&
+          request.resource.data.senderId == request.auth.uid;
+
+        // Sender can soft-delete / edit their own message (limited fields only)
+        allow update: if isSignedIn() && (
+          (resource.data.senderId == request.auth.uid &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['deleted', 'message', 'editedAt'])) ||
+          isAdmin()
+        );
+
+        allow delete: if isAdmin();
+      }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // PRIVATE CHATS  (Website — different from Android chats collection)
+    // ══════════════════════════════════════════════════════════════════════════
+    // chatId format: {uid1}_{uid2} sorted alphabetically
+    // ──────────────────────────────────────────────────────────────────────────
+    match /privateChats/{chatId} {
+      function isPrivateChatParticipant() {
+        let parts = chatId.split('_');
+        return isSignedIn() &&
+          (request.auth.uid == parts[0] || request.auth.uid == parts[1]);
+      }
+
+      allow read, write: if isPrivateChatParticipant() || isAdmin();
+
+      match /messages/{msgId} {
+        allow read: if isPrivateChatParticipant() || isAdmin();
+
+        allow create: if (isPrivateChatParticipant() || isAdmin()) &&
+          request.resource.data.senderId == request.auth.uid;
+
+        allow delete: if isAdmin() ||
+          (isPrivateChatParticipant() && resource.data.senderId == request.auth.uid);
+
+        allow update: if isAdmin();
+      }
+    }
+
+    // Private chat metadata (Website)
+    match /privateChatMeta/{chatId} {
+      function isMetaParticipant() {
+        let parts = chatId.split('_');
+        return isSignedIn() &&
+          (request.auth.uid == parts[0] || request.auth.uid == parts[1]);
+      }
+
+      allow read, write: if isMetaParticipant() || isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // COMMUNITY MESSAGES  (Website — global community chat)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: senderId, senderName, senderPhoto, message, createdAt
+    // ──────────────────────────────────────────────────────────────────────────
+    match /communityMessages/{msgId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.senderId == request.auth.uid;
+      allow delete: if isAdmin() ||
+        (isSignedIn() && resource.data.senderId == request.auth.uid);
+      allow update: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // COMMUNITY POSTS  (Android app — threaded posts with likes/comments)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: authorId, authorName, authorPhoto, content, type, subject,
+    //         likes, likedBy, commentCount, createdAt, premiumOnly
+    // ──────────────────────────────────────────────────────────────────────────
+    match /communityPosts/{postId} {
+      allow read: if isSignedIn() && (
+        resource.data.get('premiumOnly', false) == false || canAccessPremium()
+      );
+
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['authorId', 'content', 'createdAt']);
+
+      // Author can edit content; anyone signed-in can update engagement counters
+      allow update: if isSignedIn() && isNotBanned() && (
+        resource.data.authorId == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['likes', 'likedBy', 'commentCount', 'viewCount']) ||
+        isAdmin()
+      );
+
+      allow delete: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid || isAdmin()
+      );
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // COMMENTS  (shared)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: authorId, authorName, content, postId, parentCommentId, createdAt
+    // ──────────────────────────────────────────────────────────────────────────
+    match /comments/{commentId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.authorId == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+        (resource.data.authorId == request.auth.uid || isAdmin());
+
+      allow delete: if isSignedIn() &&
+        (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    // Replies (Android — nested under comments via flat collection)
+    match /replies/{replyId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.authorId == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+        (resource.data.authorId == request.auth.uid || isAdmin());
+
+      allow delete: if isSignedIn() &&
+        (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // GROUPS  (Android app)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: groupName, description, subject, emoji, createdBy, members,
+    //         premiumOnly, imageUrl, createdAt
+    // ──────────────────────────────────────────────────────────────────────────
+    match /groups/{groupId} {
+      allow read: if isSignedIn() && (
+        resource.data.get('premiumOnly', false) == false || canAccessPremium()
+      );
+
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.createdBy == request.auth.uid;
+
+      allow update: if isSignedIn() && (
+        request.auth.uid in resource.data.get('members', []) ||
+        resource.data.createdBy == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow delete: if isSignedIn() &&
+        (resource.data.createdBy == request.auth.uid || isAdmin());
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() &&
+          request.auth.uid in
+            get(/databases/$(database)/documents/groups/$(groupId)).data.get('members', []);
+
+        allow create: if isSignedIn() && isNotBanned() &&
+          request.auth.uid in
+            get(/databases/$(database)/documents/groups/$(groupId)).data.get('members', []) &&
+          request.resource.data.senderId == request.auth.uid;
+
+        allow update, delete: if isAdmin();
+      }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // QUIZZES  (shared)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: title, subject, premium, difficulty, questions (array or subcollection),
+    //         createdAt, xpReward, timeLimit
+    // ──────────────────────────────────────────────────────────────────────────
+    match /quizzes/{quizId} {
+      allow read: if isSignedIn() && (
+        resource.data.get('premium', false) == false || canAccessPremium()
+      );
+
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Questions (flat collection — alternative to subcollection)
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Quiz attempts (Android)
+    match /quizAttempts/{attemptId} {
+      allow read: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+        resource.data.userId == request.auth.uid;
+
+      allow delete: if isAdmin();
+    }
+
+    // Quiz history (Android — separate from quizAttempts for analytics)
+    match /quizHistory/{histId} {
+      allow read: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+        resource.data.userId == request.auth.uid;
+
+      allow delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ACTIVITY FEED  (Android app)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: userId, userName, type, description, xpDelta, createdAt
+    // ──────────────────────────────────────────────────────────────────────────
+    match /activityFeed/{eventId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isNotBanned();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // MODERATION — Reports & Logs  (shared)
+    // ══════════════════════════════════════════════════════════════════════════
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.reportedBy == request.auth.uid &&
+        request.resource.data.get('resolved', false) == false;
+
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /moderationLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // CONTACT MESSAGES  (Website — contact form submissions)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: uid, name, email, message, subject, createdAt
+    // ──────────────────────────────────────────────────────────────────────────
+    match /contactMessages/{msgId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SUBJECTS  (Website — course subject catalogue)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: name, displayName, emoji, color, description, order
+    // ──────────────────────────────────────────────────────────────────────────
+    match /subjects/{subId} {
+      allow read: if true;  // Public — no auth required
+      allow create, update, delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // CONTENT CATALOGUE  (Website — shared with Android resources)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // Lecture folder structure
+    match /lecture_folders/{folderId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // File metadata (external URL, NO Storage)
+    // Fields: title, subject, type, downloadUrl, thumbnailUrl, premium, size, createdAt
+    match /files/{fileId} {
+      allow read: if isSignedIn() && (
+        resource.data.get('premium', false) == false || canAccessPremium()
+      );
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Lectures / video content metadata
+    // Fields: title, subject, youtubeId, thumbnailUrl, duration, premium, createdAt
+    match /lectures/{lectId} {
+      allow read: if isSignedIn() && (
+        resource.data.get('premium', false) == false || canAccessPremium()
+      );
+      allow create, update, delete: if isAdmin();
+    }
+
+    // YouTube channels catalogue
+    match /yt_channels/{chanId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SITE CONFIGURATION  (Website — admin-managed settings)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // Global branding (logo, colors, app name)
+    match /branding/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Site-wide settings
+    match /siteSettings/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Subject-specific popups (bannerBase64 or popupImageBase64 allowed)
+    match /subjectPopups/{subjectId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Site banners (bannerBase64 allowed for lightweight banners)
+    match /siteBanners/{bannerId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // COUPONS  (Website — discount codes)
+    // ══════════════════════════════════════════════════════════════════════════
+    match /coupons/{couponId} {
+      allow read: if true;  // Validation happens client-side + couponUsage
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Coupon redemption tracking
+    match /couponUsage/{usageId} {
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.uid == request.auth.uid;
+
+      allow read: if isSignedIn() &&
+        (resource.data.uid == request.auth.uid || isAdmin());
+
+      allow update, delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // TESTS & TEST ATTEMPTS  (Website — online tests, separate from quizzes)
+    // ══════════════════════════════════════════════════════════════════════════
+    match /tests/{testId} {
+      allow read: if isSignedIn() && (
+        resource.data.get('premium', false) == false || canAccessPremium()
+      );
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /testAttempts/{attemptId} {
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.userId == request.auth.uid;
+
+      allow read: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow update, delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // RATINGS  (Website — nested rating data)
+    // ══════════════════════════════════════════════════════════════════════════
+    match /ratings/{docKey} {
+      allow read: if isSignedIn();
+
+      match /users/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn() && request.auth.uid == uid;
+        allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      }
+
+      match /meta/{metaDoc} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn();
+        allow delete: if isAdmin();
+      }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // APP FEEDBACK & ISSUE REPORTS  (Android — Play Store readiness)
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fields: userId, category, description, rating, appVersion, createdAt
+    // ──────────────────────────────────────────────────────────────────────────
+    match /appFeedback/{feedbackId} {
+      allow create: if isSignedIn() && isNotBanned() &&
+        request.resource.data.userId == request.auth.uid;
+
+      allow read: if isAdmin() ||
+        (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      allow update, delete: if isAdmin();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // DENY ALL — catch-all for any unlisted path
+    // ══════════════════════════════════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
