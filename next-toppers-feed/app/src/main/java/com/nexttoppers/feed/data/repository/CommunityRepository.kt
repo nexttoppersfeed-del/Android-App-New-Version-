@@ -65,32 +65,77 @@ class CommunityRepository @Inject constructor(
 
     fun observePosts(filterType: String? = null, limit: Long = 50):
             Flow<Result<List<CommunityPost>>> = callbackFlow {
-        var query: Query = postsCol
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(limit)
+        var baseQuery: Query = postsCol.limit(limit)
         if (!filterType.isNullOrBlank()) {
-            query = query.whereEqualTo("type", filterType)
+            baseQuery = baseQuery.whereEqualTo("type", filterType)
         }
-        val listener = query.addSnapshotListener { snap, err ->
-            if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-            val posts = snap?.documents?.mapNotNull { mapPost(it) } ?: emptyList()
-            trySend(Result.success(posts))
+
+        var createdAtItems: List<CommunityPost> = emptyList()
+        var timestampItems: List<CommunityPost> = emptyList()
+
+        fun mergeAndSend() {
+            val merged = (createdAtItems + timestampItems)
+                .distinctBy { it.postId }
+                .sortedByDescending { it.createdAt.seconds }
+            trySend(Result.success(merged))
         }
-        awaitClose { listener.remove() }
+
+        val createdAtListener = baseQuery
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { snap, err ->
+                if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
+                createdAtItems = snap?.documents?.mapNotNull { mapPost(it) } ?: emptyList()
+                mergeAndSend()
+            }
+
+        val timestampListener = baseQuery
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .addSnapshotListener { snap, _ ->
+                timestampItems = snap?.documents?.mapNotNull { mapPost(it) } ?: emptyList()
+                mergeAndSend()
+            }
+
+        awaitClose {
+            createdAtListener.remove()
+            timestampListener.remove()
+        }
     }
 
     fun observePostsBySubject(subject: String, limit: Long = 30):
             Flow<Result<List<CommunityPost>>> = callbackFlow {
-        val query = postsCol
+        var createdAtItems: List<CommunityPost> = emptyList()
+        var timestampItems: List<CommunityPost> = emptyList()
+
+        fun mergeAndSend() {
+            val merged = (createdAtItems + timestampItems)
+                .distinctBy { it.postId }
+                .sortedByDescending { it.createdAt.seconds }
+            trySend(Result.success(merged))
+        }
+
+        val createdAtListener = postsCol
+            .whereEqualTo("subject", subject)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit)
+            .addSnapshotListener { snap, err ->
+                if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
+                createdAtItems = snap?.documents?.mapNotNull { mapPost(it) } ?: emptyList()
+                mergeAndSend()
+            }
+
+        val timestampListener = postsCol
             .whereEqualTo("subject", subject)
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .limit(limit)
-        val listener = query.addSnapshotListener { snap, err ->
-            if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-            val posts = snap?.documents?.mapNotNull { mapPost(it) } ?: emptyList()
-            trySend(Result.success(posts))
+            .addSnapshotListener { snap, _ ->
+                timestampItems = snap?.documents?.mapNotNull { mapPost(it) } ?: emptyList()
+                mergeAndSend()
+            }
+
+        awaitClose {
+            createdAtListener.remove()
+            timestampListener.remove()
         }
-        awaitClose { listener.remove() }
     }
 
     fun observePost(postId: String): Flow<Result<CommunityPost>> = callbackFlow {
@@ -104,7 +149,8 @@ class CommunityRepository @Inject constructor(
     }
 
     suspend fun createPost(post: CommunityPost): Result<String> = runCatching {
-        val id = UUID.randomUUID().toString()
+        val id  = UUID.randomUUID().toString()
+        val now = Timestamp.now()
         postsCol.document(id).set(mapOf(
             "userId"      to post.userId,
             "username"    to post.username,
@@ -115,7 +161,8 @@ class CommunityRepository @Inject constructor(
             "subject"     to post.subject,
             "likes"       to post.likes,
             "replyCount"  to post.commentsCount,
-            "timestamp"   to Timestamp.now(),
+            "timestamp"   to now,
+            "createdAt"   to now,
             "pinned"      to post.pinned,
             "hot"         to post.hot,
             "premiumOnly" to post.premiumOnly

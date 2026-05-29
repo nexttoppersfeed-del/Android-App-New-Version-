@@ -5,10 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.nexttoppers.feed.data.model.Chat
 import com.nexttoppers.feed.data.repository.AuthRepository
 import com.nexttoppers.feed.data.repository.ChatRepository
+import com.nexttoppers.feed.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,7 +21,8 @@ sealed class ChatListUiState {
 @HiltViewModel
 class ChatListViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ChatListUiState>(ChatListUiState.Loading)
@@ -49,13 +50,39 @@ class ChatListViewModel @Inject constructor(
             chatRepository.observeUserChats(uid).collect { result ->
                 result
                     .onSuccess { chats ->
-                        _allChats.value = chats
-                        applySearch(_searchQuery.value, chats)
+                        val enriched = enrichParticipantNames(chats, uid)
+                        _allChats.value = enriched
+                        applySearch(_searchQuery.value, enriched)
                     }
                     .onFailure { err ->
                         _uiState.value = ChatListUiState.Error(err.message ?: "Failed to load chats")
                     }
             }
+        }
+    }
+
+    private suspend fun enrichParticipantNames(chats: List<Chat>, myUid: String): List<Chat> {
+        return chats.map { chat ->
+            val missingUids = chat.participants.filter { uid ->
+                uid != myUid && chat.participantNames[uid].isNullOrBlank()
+            }
+            if (missingUids.isEmpty()) return@map chat
+
+            val fetchedNames = mutableMapOf<String, String>()
+            val fetchedPhotos = mutableMapOf<String, String>()
+            for (uid in missingUids) {
+                userRepository.getUser(uid).onSuccess { user ->
+                    fetchedNames[uid] = user.name
+                    fetchedPhotos[uid] = user.photoUrl
+                }
+            }
+
+            if (fetchedNames.isEmpty()) return@map chat
+
+            chat.copy(
+                participantNames  = chat.participantNames + fetchedNames,
+                participantPhotos = chat.participantPhotos + fetchedPhotos
+            )
         }
     }
 

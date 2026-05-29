@@ -89,6 +89,11 @@ class ResourcesRepository @Inject constructor(
 
     fun observeBySubject(subject: String): Flow<Result<List<Resource>>> = callbackFlow {
         val subjectUpper = subject.uppercase()
+        val subjectVariants = listOf(
+            subjectUpper,
+            subject.lowercase(),
+            subject.replaceFirstChar { it.uppercaseChar() }
+        ).distinct()
         var filesItems: List<Resource>   = emptyList()
         var lectureItems: List<Resource> = emptyList()
 
@@ -99,7 +104,7 @@ class ResourcesRepository @Inject constructor(
         }
 
         val filesListener = filesCol
-            .whereEqualTo("subject", subjectUpper)
+            .whereIn("subject", subjectVariants)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .limit(50)
             .addSnapshotListener { snap, err ->
@@ -109,7 +114,7 @@ class ResourcesRepository @Inject constructor(
             }
 
         val lecturesListener = lecturesCol
-            .whereEqualTo("subject", subjectUpper)
+            .whereIn("subject", subjectVariants)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .limit(30)
             .addSnapshotListener { snap, _ ->
@@ -162,17 +167,22 @@ class ResourcesRepository @Inject constructor(
 
     suspend fun getBySubjectAndType(subject: String, type: String): Result<List<Resource>> =
         runCatching {
-            val subjectUpper = subject.uppercase()
-            val typeUpper    = type.uppercase()
+            val subjectUpper    = subject.uppercase()
+            val typeUpper       = type.uppercase()
+            val subjectVariants = listOf(
+                subjectUpper,
+                subject.lowercase(),
+                subject.replaceFirstChar { it.uppercaseChar() }
+            ).distinct()
             if (typeUpper == ResourceType.LECTURE.name) {
                 val snap = lecturesCol
-                    .whereEqualTo("subject", subjectUpper)
+                    .whereIn("subject", subjectVariants)
                     .orderBy("createdAt", Query.Direction.DESCENDING)
                     .limit(30).get().await()
                 snap.documents.mapNotNull { mapLecture(it) }
             } else {
                 val snap = filesCol
-                    .whereEqualTo("subject", subjectUpper)
+                    .whereIn("subject", subjectVariants)
                     .whereEqualTo("type", typeUpper)
                     .orderBy("createdAt", Query.Direction.DESCENDING)
                     .limit(50).get().await()

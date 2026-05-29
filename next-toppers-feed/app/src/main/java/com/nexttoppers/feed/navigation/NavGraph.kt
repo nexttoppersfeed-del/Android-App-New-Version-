@@ -32,6 +32,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nexttoppers.feed.ui.auth.LoginScreen
+import com.nexttoppers.feed.ui.chats.ChatScreen
 import com.nexttoppers.feed.ui.chats.ChatsScreen
 import com.nexttoppers.feed.ui.tests.TestsScreen
 import com.nexttoppers.feed.ui.downloads.DownloadsScreen
@@ -79,6 +80,10 @@ object Routes {
         "quiz_home"
 
     const val TESTS = "tests"
+
+    const val CHAT = "chat/{chatId}"
+
+    fun chat(chatId: String) = "chat/$chatId"
 
     fun subjectResources(
         subject: String
@@ -416,7 +421,25 @@ private fun MainAppShell(
             }
 
             composable(Routes.CHATS) {
-                ChatsScreen()
+                ChatsScreen(
+                    onNavigateToChat = { chatId ->
+                        navController.navigate(Routes.chat(chatId))
+                    }
+                )
+            }
+
+            composable(
+                route = Routes.CHAT,
+                arguments = listOf(
+                    navArgument("chatId") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    }
+                )
+            ) {
+                ChatScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(Routes.PROFILE) {
