@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.nexttoppers.feed.data.model.User
+import com.nexttoppers.feed.data.model.toPremiumMembership
 import com.nexttoppers.feed.ui.achievements.AchievementsSection
 import com.nexttoppers.feed.ui.components.NeonDivider
 import com.nexttoppers.feed.ui.components.NtfCard
@@ -69,9 +70,12 @@ import com.nexttoppers.feed.ui.components.NtfGradientCard
 import com.nexttoppers.feed.ui.components.NtfOutlinedButton
 import com.nexttoppers.feed.ui.components.SkeletonCard
 import com.nexttoppers.feed.ui.components.XpBadge
+import com.nexttoppers.feed.ui.premium.CurrentMembershipCard
+import com.nexttoppers.feed.ui.premium.PremiumBadge
+import com.nexttoppers.feed.ui.theme.AccentCyan
+import com.nexttoppers.feed.ui.theme.AccentViolet
 import com.nexttoppers.feed.ui.theme.BackgroundBlack
 import com.nexttoppers.feed.ui.theme.ErrorRed
-import com.nexttoppers.feed.ui.theme.NeonCyan
 import com.nexttoppers.feed.ui.theme.NeonGreen
 import com.nexttoppers.feed.ui.theme.PremiumGold
 import com.nexttoppers.feed.ui.theme.SurfaceCard
@@ -81,9 +85,6 @@ import com.nexttoppers.feed.ui.theme.TextPrimary
 import com.nexttoppers.feed.ui.theme.TextSecondary
 import com.nexttoppers.feed.ui.xp.GlowingLevelCard
 import com.nexttoppers.feed.ui.xp.StreakCard
-import com.nexttoppers.feed.ui.premium.CurrentMembershipCard
-import com.nexttoppers.feed.ui.premium.PremiumBadge
-import com.nexttoppers.feed.data.model.toPremiumMembership
 import com.nexttoppers.feed.util.LevelUtils
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -101,33 +102,33 @@ fun ProfileScreen(
     val userRank by viewModel.userRank.collectAsState()
     val context  = LocalContext.current
     var visible  by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) { visible = true }
     LaunchedEffect(uiState) {
         if (uiState is ProfileUiState.SignedOut) onSignedOut()
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(BackgroundBlack),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(BackgroundBlack)) {
         when (val state = uiState) {
             is ProfileUiState.Loading -> ProfileLoadingSkeleton()
-            is ProfileUiState.Error   -> Text(state.message, color = TextSecondary)
+            is ProfileUiState.Error   -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(state.message, color = TextSecondary)
+            }
             is ProfileUiState.Success -> {
                 AnimatedVisibility(
                     visible = visible,
                     enter   = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 8 }
                 ) {
                     ProfileContent(
-                        user                 = state.user,
-                        userRank             = userRank,
-                        onSignOut            = { viewModel.signOut(context) },
+                        user              = state.user,
+                        userRank          = userRank,
                         onNavigateToSettings = onNavigateToSettings,
-                        onNavigateToAdmin    = onNavigateToAdmin
+                        onNavigateToAdmin    = onNavigateToAdmin,
+                        onSignOut            = { viewModel.signOut(context) }
                     )
                 }
             }
-            else -> Unit
+            is ProfileUiState.SignedOut -> Unit
         }
     }
 }
@@ -135,14 +136,16 @@ fun ProfileScreen(
 @Composable
 private fun ProfileLoadingSkeleton() {
     Column(
-        modifier = Modifier.fillMaxSize().padding(20.dp).padding(top = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp)
+            .padding(top = 60.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         SkeletonCard(height = 200.dp)
-        SkeletonCard(height = 110.dp)
-        SkeletonCard(height = 110.dp)
-        SkeletonCard(height = 180.dp)
+        SkeletonCard(height = 100.dp)
+        SkeletonCard(height = 100.dp)
+        SkeletonCard(height = 140.dp)
     }
 }
 
@@ -150,9 +153,9 @@ private fun ProfileLoadingSkeleton() {
 private fun ProfileContent(
     user: User,
     userRank: Int,
-    onSignOut: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToAdmin: () -> Unit
+    onNavigateToAdmin: () -> Unit,
+    onSignOut: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -162,338 +165,256 @@ private fun ProfileContent(
             .padding(top = 52.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // ── Header bar ────────────────────────────────────────────────────────
+        // ── Header row ───────────────────────────────────────────────────────
         Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment     = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 "Profile",
                 style = TextStyle(
-                    fontSize   = 24.sp,
+                    fontSize   = 26.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    brush      = Brush.linearGradient(listOf(NeonGreen, NeonCyan))
+                    brush      = Brush.linearGradient(listOf(AccentCyan, AccentViolet)),
+                    shadow     = Shadow(AccentCyan.copy(0.3f), Offset.Zero, 12f)
                 )
             )
-            IconButton(onClick = onNavigateToSettings) {
-                Icon(Icons.Rounded.Settings, null, tint = TextSecondary)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(onClick = onNavigateToSettings, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Rounded.Settings, null, tint = TextSecondary, modifier = Modifier.size(22.dp))
+                }
             }
         }
 
-        // ── Hero card ─────────────────────────────────────────────────────────
+        // ── Hero card ────────────────────────────────────────────────────────
         NtfGradientCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(contentAlignment = Alignment.BottomEnd) {
-                    Box(
-                        modifier = Modifier
-                            .size(90.dp)
-                            .border(2.dp, Brush.linearGradient(listOf(NeonGreen, NeonCyan)), CircleShape)
-                            .padding(3.dp)
-                            .clip(CircleShape)
-                            .background(SurfaceElevated),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (user.photoUrl.isNotEmpty()) {
-                            AsyncImage(
-                                model            = user.photoUrl,
-                                contentDescription = "Profile photo",
-                                contentScale     = ContentScale.Crop,
-                                modifier         = Modifier.fillMaxSize().clip(CircleShape)
-                            )
-                        } else {
-                            Text(
-                                user.name.take(1).uppercase(),
-                                color      = NeonGreen,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize   = 34.sp
-                            )
+                Row(verticalAlignment = Alignment.Top) {
+                    // Avatar
+                    Box(modifier = Modifier.size(72.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceElevated)
+                                .border(2.dp, AccentCyan.copy(0.6f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (user.photoUrl.isNotEmpty()) {
+                                AsyncImage(
+                                    model              = user.photoUrl,
+                                    contentDescription = null,
+                                    contentScale       = ContentScale.Crop,
+                                    modifier           = Modifier.fillMaxSize().clip(CircleShape)
+                                )
+                            } else {
+                                Text(
+                                    user.name.firstOrNull()?.uppercaseChar()?.toString() ?: "U",
+                                    fontSize   = 28.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color      = TextPrimary
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .align(Alignment.BottomEnd)
+                                .background(AccentCyan, CircleShape)
+                                .border(1.5.dp, SurfaceCard, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Rounded.Edit, null, tint = Color.White, modifier = Modifier.size(11.dp))
                         }
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .background(NeonGreen, CircleShape)
-                            .border(2.dp, SurfaceCard, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Rounded.Edit, null, tint = BackgroundBlack, modifier = Modifier.size(12.dp))
-                    }
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        user.name,
-                        style = TextStyle(
-                            fontSize   = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            brush      = Brush.linearGradient(listOf(NeonGreen, NeonCyan))
-                        )
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(user.email, color = TextMuted, fontSize = 12.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        XpBadge(xp = user.xp)
-                        if (user.isPremium) {
-                            PremiumBadge(badge = user.toPremiumMembership().badge)
+                    Spacer(Modifier.width(14.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(user.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            if (user.isPremium) {
+                                Spacer(Modifier.width(6.dp))
+                                PremiumBadge(badge = user.toPremiumMembership().badge)
+                            }
                         }
-                        if (user.isAdmin) {
-                            AdminBadge()
+                        Text(user.email, fontSize = 11.sp, color = TextMuted)
+                        Spacer(Modifier.height(2.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            XpBadge(xp = user.xp)
+                            if (user.isAdmin) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(AdminPurple.copy(0.15f), RoundedCornerShape(6.dp))
+                                        .border(1.dp, AdminPurple.copy(0.4f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Rounded.AdminPanelSettings, null, tint = AdminPurple, modifier = Modifier.size(11.dp))
+                                        Spacer(Modifier.width(3.dp))
+                                        Text("Admin", fontSize = 10.sp, color = AdminPurple, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-
-                NeonDivider()
-
-                // Stats row — 4 stats now
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    ProfileStat("XP",     "${user.xp}",                                   NeonGreen)
-                    ProfileStat("Level",  "${user.level}",                                 NeonCyan)
-                    ProfileStat("Streak", "${user.streak}d",                               Color(0xFFFF6B35))
-                    ProfileStat("Rank",   if (userRank > 0) "#$userRank" else "–",         PremiumGold)
-                }
+                // Trophy illustration area
+                Text("🎯", fontSize = 32.sp)
             }
         }
 
-        // ── Level card ────────────────────────────────────────────────────────
-        GlowingLevelCard(xp = user.xp, modifier = Modifier.fillMaxWidth())
+        // ── Stats grid ───────────────────────────────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            ProfileStatTile("🔥", "${user.streak}", "Streak", PremiumGold, Modifier.weight(1f))
+            ProfileStatTile("⚡", "${user.xp}", "XP", AccentCyan, Modifier.weight(1f))
+            ProfileStatTile("🏆", "#$userRank", "Global Rank", AccentViolet, Modifier.weight(1f))
+        }
 
-        // ── Membership card ───────────────────────────────────────────────────
-        CurrentMembershipCard(
-            membership    = user.toPremiumMembership(),
-            onManageClick = onNavigateToSettings,
-            modifier      = Modifier.fillMaxWidth()
-        )
+        // ── Level progress ───────────────────────────────────────────────────
+        GlowingLevelCard(xp = user.xp, modifier = Modifier.fillMaxWidth())
 
         // ── Streak card ───────────────────────────────────────────────────────
         StreakCard(streak = user.streak, modifier = Modifier.fillMaxWidth())
 
-        // ── Rank card ─────────────────────────────────────────────────────────
-        if (userRank > 0) {
-            RankInfoCard(rank = userRank, xp = user.xp)
-        }
+        // ── Membership card ───────────────────────────────────────────────────
+        CurrentMembershipCard(membership = user.toPremiumMembership(), onManageClick = {})
+
+        // ── Achievements ─────────────────────────────────────────────────────
+        AchievementsSection(
+            quizzesCompleted = user.quizzesCompleted,
+            streak           = user.streak,
+            resourcesOpened  = user.resourcesOpened,
+            level            = user.level
+        )
 
         // ── Study stats ───────────────────────────────────────────────────────
-        StudyStatsCard(user)
-
-        // ── Achievements ──────────────────────────────────────────────────────
         NtfCard(modifier = Modifier.fillMaxWidth()) {
-            AchievementsSection(
-                quizzesCompleted = user.quizzesCompleted,
-                streak           = user.streak,
-                resourcesOpened  = user.resourcesOpened,
-                level            = user.level
-            )
-        }
-
-        // ── Info card ─────────────────────────────────────────────────────────
-        NtfCard(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                ProfileInfoRow(Icons.Rounded.Email,               "Email",     user.email)
-                ProfileInfoRow(Icons.Rounded.Star,                "XP",        "${user.xp} points",         NeonGreen)
-                ProfileInfoRow(Icons.Rounded.LocalFireDepartment, "Streak",    "${user.streak} days",       Color(0xFFFF6B35))
-                ProfileInfoRow(Icons.Rounded.EmojiEvents,         "Rank",      if (userRank > 0) "#$userRank globally" else "Unranked", PremiumGold)
-                ProfileInfoRow(Icons.Rounded.WorkspacePremium,    "Plan",      if (user.isPremium) "${user.toPremiumMembership().type.displayName} Premium" else "Free", if (user.isPremium) PremiumGold else TextSecondary)
-                val joined = SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(user.joinedAt.toDate())
-                ProfileInfoRow(Icons.Rounded.CalendarMonth,       "Joined",    joined)
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Study Stats", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    StudyStatItem(Icons.Rounded.Quiz,                 "${user.quizzesCompleted}", "Quizzes",    AccentCyan)
+                    StudyStatItem(Icons.Rounded.LocalFireDepartment,  "${user.streak}",            "Streak",     PremiumGold)
+                    StudyStatItem(Icons.Rounded.Star,                 "${user.resourcesOpened}",   "Resources",  AccentViolet)
+                    StudyStatItem(Icons.Rounded.EmojiEvents,         "Lv.${user.level}",          "Level",      NeonGreen)
+                }
             }
         }
 
-        // ── Settings shortcut ─────────────────────────────────────────────────
+        // ── Account details ───────────────────────────────────────────────────
+        NtfCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Account", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                NeonDivider()
+                ProfileInfoRow(Icons.Rounded.Email,         "Email",          user.email)
+                ProfileInfoRow(Icons.Rounded.EmojiEvents,   "XP Points",      "${user.xp} XP")
+                ProfileInfoRow(Icons.Rounded.LocalFireDepartment, "Streak",   "${user.streak} days")
+                val joinedStr = try {
+                    SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(user.joinedAt.toDate())
+                } catch (_: Exception) { "—" }
+                ProfileInfoRow(Icons.Rounded.CalendarMonth, "Joined On", joinedStr)
+            }
+        }
+
+        // ── Navigation shortcuts ──────────────────────────────────────────────
         NtfCard(
-            modifier     = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                .clickable(onClick = onNavigateToSettings),
-            borderColor  = NeonCyan.copy(0.2f)
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onNavigateToSettings),
+            borderColor = AccentCyan.copy(0.2f)
         ) {
             Row(
                 Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(
-                    Modifier.size(36.dp).background(NeonCyan.copy(0.12f), RoundedCornerShape(10.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Rounded.Settings, null, tint = NeonCyan, modifier = Modifier.size(18.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Settings, null, tint = AccentCyan, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text("Settings & Preferences", fontSize = 14.sp, color = TextPrimary)
                 }
-                Spacer(Modifier.width(12.dp))
-                Text("Settings", color = TextPrimary, fontSize = 14.sp, modifier = Modifier.weight(1f))
                 Icon(Icons.Rounded.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(18.dp))
             }
         }
 
-        // ── Admin Panel shortcut (only shown when isAdmin) ────────────────────
         if (user.isAdmin) {
             NtfCard(
-                modifier    = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                    .clickable(onClick = onNavigateToAdmin),
-                borderColor = AdminPurple.copy(0.35f)
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onNavigateToAdmin),
+                borderColor = AdminPurple.copy(0.3f)
             ) {
                 Row(
-                    Modifier.fillMaxWidth()
-                        .background(
-                            Brush.horizontalGradient(listOf(AdminPurple.copy(0.08f), Color.Transparent))
-                        ),
-                    verticalAlignment = Alignment.CenterVertically
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        Modifier.size(36.dp)
-                            .background(AdminPurple.copy(0.15f), RoundedCornerShape(10.dp))
-                            .border(1.dp, AdminPurple.copy(0.4f), RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Rounded.AdminPanelSettings, null, tint = AdminPurple, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Admin Panel", color = AdminPurple, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text("Manage app content & users", color = TextMuted, fontSize = 11.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.AdminPanelSettings, null, tint = AdminPurple, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("Admin Panel", fontSize = 14.sp, color = AdminPurple, fontWeight = FontWeight.SemiBold)
+                            Text("Manage app content & users", fontSize = 11.sp, color = TextMuted)
+                        }
                     }
                     Icon(Icons.Rounded.ChevronRight, null, tint = AdminPurple.copy(0.7f), modifier = Modifier.size(18.dp))
                 }
             }
         }
 
-        Spacer(Modifier.height(4.dp))
-        NtfOutlinedButton("Sign Out", onSignOut, accentColor = ErrorRed)
+        // ── Sign out ──────────────────────────────────────────────────────────
+        NtfOutlinedButton(text = "Sign Out", onClick = onSignOut, accentColor = ErrorRed)
     }
 }
 
-// ── Admin badge ────────────────────────────────────────────────────────────────
 @Composable
-private fun AdminBadge() {
+private fun ProfileStatTile(emoji: String, value: String, label: String, color: Color, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
-            .background(AdminPurple.copy(0.15f), RoundedCornerShape(50.dp))
-            .border(1.dp, AdminPurple.copy(0.5f), RoundedCornerShape(50.dp))
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+        modifier = modifier
+            .background(color.copy(0.07f), RoundedCornerShape(14.dp))
+            .border(1.dp, color.copy(0.2f), RoundedCornerShape(14.dp))
+            .padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Icon(Icons.Rounded.AdminPanelSettings, null, tint = AdminPurple, modifier = Modifier.size(11.dp))
-            Text("ADMIN", color = AdminPurple, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-        }
-    }
-}
-
-// ── Rank info card ─────────────────────────────────────────────────────────────
-@Composable
-private fun RankInfoCard(rank: Int, xp: Long) {
-    val rankColor = when {
-        rank == 1    -> PremiumGold
-        rank <= 3    -> NeonCyan
-        rank <= 10   -> NeonGreen
-        else         -> TextSecondary
-    }
-    val badge = LevelUtils.rankBadgeEmoji(rank)
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.horizontalGradient(listOf(rankColor.copy(0.10f), rankColor.copy(0.04f)))
-            )
-            .border(
-                1.dp,
-                Brush.horizontalGradient(listOf(rankColor.copy(0.5f), NeonCyan.copy(0.3f))),
-                RoundedCornerShape(20.dp)
-            )
-            .padding(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(badge, fontSize = 32.sp)
-            Spacer(Modifier.width(14.dp))
-            Column {
-                Text(
-                    "Global Rank #$rank",
-                    style = TextStyle(
-                        fontSize   = 17.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        brush      = Brush.linearGradient(listOf(rankColor, NeonCyan)),
-                        shadow     = Shadow(rankColor.copy(0.3f), Offset.Zero, 10f)
-                    )
-                )
-                Text("$xp XP · ${LevelUtils.levelTitle(LevelUtils.levelForXp(xp))}", color = TextSecondary, fontSize = 12.sp)
-            }
-        }
-    }
-}
-
-// ── Study stats card ───────────────────────────────────────────────────────────
-@Composable
-private fun StudyStatsCard(user: User) {
-    NtfCard(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Study Stats", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            NeonDivider()
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                StudyStat(Icons.Rounded.Quiz,                 "Quizzes",   "${user.quizzesCompleted}",      NeonGreen)
-                StudyStat(Icons.Rounded.LocalFireDepartment,  "Streak",    "${user.streak}d",               Color(0xFFFF6B35))
-                StudyStat(Icons.Rounded.Star,                 "Resources", "${user.resourcesOpened}",       NeonCyan)
-                StudyStat(Icons.Rounded.EmojiEvents,          "Level",     "${user.level}",                 PremiumGold)
-            }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(emoji, fontSize = 18.sp)
+            Text(value, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = color)
+            Text(label, fontSize = 10.sp, color = TextMuted)
         }
     }
 }
 
 @Composable
-private fun StudyStat(icon: ImageVector, label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun StudyStatItem(icon: ImageVector, value: String, label: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(color.copy(0.12f), RoundedCornerShape(12.dp)),
+            modifier = Modifier.size(36.dp).background(color.copy(0.12f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+            Icon(icon, null, tint = color, modifier = Modifier.size(17.dp))
         }
-        Text(value,  color = color,        fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
-        Text(label,  color = TextMuted,    fontSize   = 10.sp)
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+        Text(label, fontSize = 9.sp, color = TextMuted)
     }
 }
 
 @Composable
-private fun ProfileStat(label: String, value: String, color: Color) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+private fun ProfileInfoRow(icon: ImageVector, label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        Text(label, color = TextMuted, fontSize = 10.sp)
-    }
-}
-
-@Composable
-private fun ProfileInfoRow(
-    icon: ImageVector,
-    label: String,
-    value: String,
-    valueColor: Color = TextPrimary
-) {
-    Column {
-        Row(
-            Modifier.fillMaxWidth().padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, null, tint = NeonGreen.copy(0.7f), modifier = Modifier.size(17.dp))
-            Spacer(Modifier.width(12.dp))
-            Text(label, color = TextSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            Text(value, color = valueColor, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = AccentCyan.copy(0.7f), modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(label, fontSize = 12.sp, color = TextSecondary)
         }
-        NeonDivider()
-    }
-}
-
-@Composable
-private fun PremiumPill() {
-    Box(
-        modifier = Modifier
-            .background(PremiumGold.copy(0.15f), RoundedCornerShape(50.dp))
-            .border(1.dp, PremiumGold.copy(0.5f), RoundedCornerShape(50.dp))
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-    ) {
-        Text("⭐ PRO", color = PremiumGold, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+        Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
     }
 }

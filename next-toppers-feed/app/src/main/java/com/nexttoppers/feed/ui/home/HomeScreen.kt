@@ -2,6 +2,7 @@ package com.nexttoppers.feed.ui.home
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,13 +48,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,17 +60,22 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.nexttoppers.feed.data.model.LeaderboardEntry
 import com.nexttoppers.feed.data.model.User
+import com.nexttoppers.feed.data.model.toPremiumMembership
 import com.nexttoppers.feed.ui.achievements.AchievementsMiniRow
-import com.nexttoppers.feed.ui.announcements.AnnouncementsSection
 import com.nexttoppers.feed.ui.announcements.AnnouncementCarouselWithViewModel
-import com.nexttoppers.feed.ui.notifications.NotificationBellBadge
+import com.nexttoppers.feed.ui.announcements.AnnouncementsSection
 import com.nexttoppers.feed.ui.components.NtfCard
 import com.nexttoppers.feed.ui.components.NtfGradientCard
-import com.nexttoppers.feed.ui.components.PulsingDot
 import com.nexttoppers.feed.ui.components.SectionHeader
 import com.nexttoppers.feed.ui.components.SkeletonCard
 import com.nexttoppers.feed.ui.components.SkeletonRow
 import com.nexttoppers.feed.ui.components.XpBadge
+import com.nexttoppers.feed.ui.notifications.NotificationBellBadge
+import com.nexttoppers.feed.ui.premium.PremiumBannerCard
+import com.nexttoppers.feed.ui.theme.AccentBlue
+import com.nexttoppers.feed.ui.theme.AccentCyan
+import com.nexttoppers.feed.ui.theme.AccentIndigo
+import com.nexttoppers.feed.ui.theme.AccentViolet
 import com.nexttoppers.feed.ui.theme.BackgroundBlack
 import com.nexttoppers.feed.ui.theme.NeonCyan
 import com.nexttoppers.feed.ui.theme.NeonGreen
@@ -83,8 +88,6 @@ import com.nexttoppers.feed.ui.theme.TextSecondary
 import com.nexttoppers.feed.ui.xp.GlowingLevelCard
 import com.nexttoppers.feed.ui.xp.RankCard
 import com.nexttoppers.feed.ui.xp.StreakCard
-import com.nexttoppers.feed.ui.premium.PremiumBannerCard
-import com.nexttoppers.feed.data.model.toPremiumMembership
 import com.nexttoppers.feed.util.LevelUtils
 import java.util.Calendar
 
@@ -102,11 +105,11 @@ fun HomeScreen(
     onNavigateToActivityFeed: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val uiState                  by viewModel.uiState.collectAsState()
-    val userRank                 by viewModel.userRank.collectAsState()
-    val topEntries               by viewModel.topEntries.collectAsState()
-    val unreadNotificationCount  by viewModel.unreadNotificationCount.collectAsState()
-    var visible    by remember { mutableStateOf(false) }
+    val uiState                 by viewModel.uiState.collectAsState()
+    val userRank                by viewModel.userRank.collectAsState()
+    val topEntries              by viewModel.topEntries.collectAsState()
+    val unreadNotificationCount by viewModel.unreadNotificationCount.collectAsState()
+    var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
 
     Box(
@@ -114,19 +117,6 @@ fun HomeScreen(
             .fillMaxSize()
             .background(BackgroundBlack)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(NeonGreen.copy(0.07f), Color.Transparent),
-                        center = Offset(Float.POSITIVE_INFINITY / 2, 0f),
-                        radius = 600f
-                    )
-                )
-        )
-
         when (val state = uiState) {
             is HomeUiState.Loading -> HomeLoadingSkeleton()
             is HomeUiState.Error   -> {
@@ -169,10 +159,11 @@ private fun HomeLoadingSkeleton() {
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         SkeletonRow()
-        SkeletonCard(height = 140.dp)
-        SkeletonCard(height = 100.dp)
-        SkeletonCard(height = 100.dp)
-        SkeletonCard(height = 200.dp)
+        SkeletonCard(height = 52.dp)
+        SkeletonCard(height = 180.dp)
+        SkeletonCard(height = 120.dp)
+        SkeletonCard(height = 120.dp)
+        SkeletonCard(height = 180.dp)
     }
 }
 
@@ -199,22 +190,35 @@ private fun HomeContent(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
             .padding(top = 52.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(22.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        TopBar(
+        // ── Top bar ──────────────────────────────────────────────────────────
+        HomeTopBar(
             user                    = user,
-            onSettingsClick         = onNavigateToSettings,
             unreadNotificationCount = unreadNotificationCount,
-            onNotificationClick     = onNavigateToNotifications
+            onNotificationClick     = onNavigateToNotifications,
+            onSettingsClick         = onNavigateToSettings
         )
+
+        // ── Greeting ─────────────────────────────────────────────────────────
         GreetingSection(user)
+
+        // ── Announcement carousel ─────────────────────────────────────────────
+        AnnouncementCarouselWithViewModel(
+            onAnnouncementClick = onNavigateToAnnouncementDetail
+        )
+
+        // ── Hero stats card ───────────────────────────────────────────────────
         HeroStatsCard(user = user, rank = userRank)
 
         // ── XP Level progress ─────────────────────────────────────────────────
         GlowingLevelCard(xp = user.xp, modifier = Modifier.fillMaxWidth())
 
         // ── Streak + Rank row ─────────────────────────────────────────────────
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             StreakCard(streak = user.streak, modifier = Modifier.weight(1f))
             RankCard(rank = userRank, xp = user.xp, modifier = Modifier.weight(1f))
         }
@@ -227,7 +231,7 @@ private fun HomeContent(
             modifier      = Modifier.fillMaxWidth()
         )
 
-        // ── Quick actions ─────────────────────────────────────────────────────
+        // ── Quick access ──────────────────────────────────────────────────────
         SectionHeader("Quick Access")
         QuickActionsGrid(
             onNotes       = onNavigateToNotes,
@@ -241,13 +245,13 @@ private fun HomeContent(
         // ── Leaderboard preview ───────────────────────────────────────────────
         if (topEntries.isNotEmpty()) {
             LeaderboardPreviewSection(
-                entries     = topEntries,
-                onSeeAll    = onNavigateToLeaderboard,
-                currentUid  = ""
+                entries    = topEntries,
+                onSeeAll   = onNavigateToLeaderboard,
+                currentUid = ""
             )
         }
 
-        // ── Achievements mini row ─────────────────────────────────────────────
+        // ── Achievements ──────────────────────────────────────────────────────
         SectionHeader("Achievements")
         NtfCard(modifier = Modifier.fillMaxWidth()) {
             AchievementsMiniRow(
@@ -258,69 +262,81 @@ private fun HomeContent(
             )
         }
 
-        // ── Motivational message ──────────────────────────────────────────────
-        MotivationalCard(user)
-
-        // ── Announcement carousel (auto-scrolling, shows pinned + ticker) ────
-        SectionHeader("Announcements")
-        AnnouncementCarouselWithViewModel(
-            onAnnouncementClick = onNavigateToAnnouncementDetail
-        )
-
-        // ── Full announcement list with click-to-detail ────────────────────
+        // ── Announcements ─────────────────────────────────────────────────────
+        SectionHeader("Latest Announcements")
         AnnouncementsSection(onAnnouncementClick = onNavigateToAnnouncementDetail)
     }
 }
 
 // ── Top bar ────────────────────────────────────────────────────────────────────
 @Composable
-private fun TopBar(
+private fun HomeTopBar(
     user: User,
-    onSettingsClick: () -> Unit,
-    unreadNotificationCount: Int = 0,
-    onNotificationClick: () -> Unit = {}
+    unreadNotificationCount: Int,
+    onNotificationClick: () -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     Row(
-        modifier              = Modifier.fillMaxWidth(),
-        verticalAlignment     = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        // Logo + Name
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PulsingDot(NeonGreen)
-            Spacer(Modifier.width(6.dp))
-            Text("Live", color = NeonGreen, fontSize = 11.sp)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        Brush.linearGradient(listOf(AccentCyan, AccentEmerald)),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("NT", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Next Toppers Feed",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+
+        // Right actions
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             NotificationBellBadge(
                 unreadCount = unreadNotificationCount,
                 onClick     = onNotificationClick
             )
-            Spacer(Modifier.width(6.dp))
             XpBadge(xp = user.xp)
-            Spacer(Modifier.width(10.dp))
+            // Avatar
             Box(
                 modifier = Modifier
-                    .size(38.dp)
-                    .border(1.5.dp, Brush.linearGradient(listOf(NeonGreen, NeonCyan)), CircleShape)
-                    .padding(2.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
-                    .background(SurfaceElevated),
+                    .background(AccentCyan.copy(0.2f))
+                    .border(1.dp, AccentCyan.copy(0.5f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 if (user.photoUrl.isNotEmpty()) {
                     AsyncImage(
-                        model            = user.photoUrl,
-                        contentDescription = "Avatar",
-                        contentScale     = ContentScale.Crop,
-                        modifier         = Modifier.fillMaxSize().clip(CircleShape)
+                        model = user.photoUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape)
                     )
                 } else {
-                    Text(user.name.take(1).uppercase(), color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        user.name.firstOrNull()?.uppercaseChar()?.toString() ?: "U",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AccentCyan
+                    )
                 }
-            }
-            Spacer(Modifier.width(4.dp))
-            IconButton(onClick = onSettingsClick, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Rounded.Settings, null, tint = TextSecondary, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -329,259 +345,119 @@ private fun TopBar(
 // ── Greeting ───────────────────────────────────────────────────────────────────
 @Composable
 private fun GreetingSection(user: User) {
-    val hour     = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    val greeting = when { hour < 12 -> "Good morning"; hour < 17 -> "Good afternoon"; else -> "Good evening" }
-    val level    = LevelUtils.levelForXp(user.xp)
-    Column {
-        Text(greeting, color = TextMuted, fontSize = 13.sp)
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text  = user.name.split(" ").firstOrNull()?.let { "$it 👋" } ?: "Topper 👋",
-            style = TextStyle(
-                fontSize   = 26.sp,
-                fontWeight = FontWeight.ExtraBold,
-                brush      = Brush.linearGradient(listOf(NeonGreen, NeonCyan)),
-                shadow     = Shadow(NeonGreen.copy(0.35f), Offset.Zero, 16f)
-            )
-        )
-        Text(
-            motivationalMessage(level, user.streak),
-            color    = TextSecondary,
-            fontSize = 13.sp
-        )
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    val greeting = when {
+        hour < 12 -> "Good morning"
+        hour < 17 -> "Good afternoon"
+        else      -> "Good evening"
     }
-}
+    val firstName = user.name.split(" ").firstOrNull() ?: "Topper"
 
-private fun motivationalMessage(level: Int, streak: Int): String = when {
-    streak >= 30 -> "🔥 Legendary streak — you're unstoppable!"
-    streak >= 7  -> "🎯 7-day streak warrior — keep climbing!"
-    level >= 10  -> "👑 Next Topper — you've reached Legend status!"
-    level >= 5   -> "⚡ Expert level — the top 10 is in sight!"
-    streak == 0  -> "🚀 Start your streak today — every day counts!"
-    else         -> "📚 Ready to top the charts today?"
+    Column {
+        Text(
+            text = "$greeting, $firstName! 👋",
+            fontSize = 14.sp,
+            color = TextSecondary
+        )
+        Spacer(Modifier.height(2.dp))
+        Row {
+            Text(
+                text = "Let's reach the ",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Text(
+                text = "next level",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = AccentCyan
+            )
+            Text(
+                text = " today!",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+        }
+    }
 }
 
 // ── Hero stats card ────────────────────────────────────────────────────────────
 @Composable
 private fun HeroStatsCard(user: User, rank: Int) {
     NtfGradientCard(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            // User row
             Row(
-                modifier          = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .border(2.dp, Brush.linearGradient(listOf(NeonGreen, NeonCyan)), CircleShape)
-                        .padding(2.dp)
-                        .clip(CircleShape)
-                        .background(SurfaceElevated),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (user.photoUrl.isNotEmpty()) {
-                        AsyncImage(
-                            model            = user.photoUrl,
-                            contentDescription = null,
-                            contentScale     = ContentScale.Crop,
-                            modifier         = Modifier.fillMaxSize().clip(CircleShape)
-                        )
-                    } else {
-                        Text(user.name.take(1).uppercase(), color = NeonGreen, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
-                    }
-                }
-                Spacer(Modifier.width(14.dp))
-                Column {
-                    Text(user.name, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Text(user.email, color = TextMuted, fontSize = 11.sp)
-                    if (user.isPremium) { Spacer(Modifier.height(4.dp)); PremiumTag() }
-                }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatChipHome("XP",     "${user.xp}",   NeonGreen,             Modifier.weight(1f))
-                StatChipHome("Streak", "${user.streak}d", Color(0xFFFF6B35),  Modifier.weight(1f))
-                StatChipHome("Rank",   if (rank > 0) "#$rank" else "–", NeonCyan, Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatChipHome(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(color.copy(0.08f))
-            .border(1.dp, color.copy(0.25f), RoundedCornerShape(14.dp))
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-        Spacer(Modifier.height(2.dp))
-        Text(label, color = TextSecondary, fontSize = 11.sp)
-    }
-}
-
-@Composable
-private fun PremiumTag() {
-    Box(
-        modifier = Modifier
-            .background(PremiumGold.copy(0.15f), RoundedCornerShape(6.dp))
-            .border(1.dp, PremiumGold.copy(0.5f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    ) {
-        Text("⭐ PRO", color = PremiumGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-// ── Leaderboard preview section ────────────────────────────────────────────────
-@Composable
-private fun LeaderboardPreviewSection(
-    entries: List<LeaderboardEntry>,
-    onSeeAll: () -> Unit,
-    currentUid: String
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment     = Alignment.CenterVertically
-        ) {
-            SectionHeader("Top Toppers")
-            Text(
-                "See All →",
-                color      = NeonGreen,
-                fontSize   = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier   = Modifier.clickable(onClick = onSeeAll)
-            )
-        }
-        NtfCard(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                entries.take(3).forEachIndexed { idx, entry ->
-                    Row(
-                        verticalAlignment     = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(SurfaceCard)
+                            .border(2.dp, AccentCyan.copy(0.5f), CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
-                        val medal = listOf("🥇", "🥈", "🥉").getOrElse(idx) { "#${idx + 1}" }
-                        Text(medal, fontSize = 18.sp, modifier = Modifier.width(28.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(SurfaceElevated),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (entry.photoUrl.isNotEmpty()) {
-                                AsyncImage(
-                                    model            = entry.photoUrl,
-                                    contentDescription = null,
-                                    contentScale     = ContentScale.Crop,
-                                    modifier         = Modifier.fillMaxSize().clip(CircleShape)
-                                )
-                            } else {
-                                Text(
-                                    entry.name.take(1).uppercase(),
-                                    color      = NeonGreen,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize   = 14.sp
-                                )
-                            }
-                        }
-
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                entry.name,
-                                color      = if (entry.uid == currentUid) NeonGreen else TextPrimary,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize   = 13.sp
+                        if (user.photoUrl.isNotEmpty()) {
+                            AsyncImage(
+                                model              = user.photoUrl,
+                                contentDescription = null,
+                                contentScale       = ContentScale.Crop,
+                                modifier           = Modifier.fillMaxSize().clip(CircleShape)
                             )
-                            Text("Lv ${entry.level}", color = NeonCyan.copy(0.8f), fontSize = 11.sp)
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("${entry.xp}", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            Text("XP", color = TextMuted, fontSize = 10.sp)
+                        } else {
+                            Text(
+                                user.name.firstOrNull()?.uppercaseChar()?.toString() ?: "U",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
                         }
                     }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(user.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+                        Text(user.email, fontSize = 11.sp, color = TextMuted)
+                    }
                 }
+                Text(
+                    text = "View Profile",
+                    fontSize = 11.sp,
+                    color = AccentCyan,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
-        }
-    }
-}
 
-// ── Motivational card ──────────────────────────────────────────────────────────
-@Composable
-private fun MotivationalCard(user: User) {
-    val level = LevelUtils.levelForXp(user.xp)
-    val xpToNext = LevelUtils.xpToNextLevel(user.xp)
-    val msg = when {
-        xpToNext <= 50  -> "⚡ Almost there! Only $xpToNext XP to Level ${level + 1}!"
-        user.streak > 0 -> "🔥 ${user.streak}-day streak! Keep studying daily."
-        else            -> "🚀 Earn XP by completing quizzes and opening resources!"
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.horizontalGradient(listOf(NeonCyan.copy(0.07f), NeonGreen.copy(0.05f)))
-            )
-            .border(1.dp, NeonCyan.copy(0.2f), RoundedCornerShape(16.dp))
-            .padding(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Star, null, tint = NeonCyan, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(10.dp))
-            Text(msg, color = NeonCyan.copy(0.9f), fontSize = 13.sp, lineHeight = 19.sp)
-        }
-    }
-}
-
-// ── Premium banners ────────────────────────────────────────────────────────────
-@Composable
-private fun PremiumBadgeCard() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Brush.horizontalGradient(listOf(PremiumGold.copy(0.18f), NeonCyan.copy(0.1f))),
-                RoundedCornerShape(20.dp)
-            )
-            .border(1.dp, PremiumGold.copy(0.5f), RoundedCornerShape(20.dp))
-            .padding(18.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(30.dp))
-            Spacer(Modifier.width(14.dp))
-            Column {
-                Text("Premium Member", color = PremiumGold, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Text("All features unlocked — enjoy!", color = TextSecondary, fontSize = 12.sp)
+            // Stats chips
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                HomeStatChip(value = "${user.xp}", label = "XP Earned",    icon = "⚡", color = AccentCyan)
+                HomeStatChip(value = "${user.streak}", label = "Day Streak", icon = "🔥", color = PremiumGold)
+                HomeStatChip(value = "#$rank",  label = "Global Rank",    icon = "🏆", color = AccentBlue)
             }
         }
     }
 }
 
 @Composable
-private fun UpgradeToPremiumBanner(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Brush.horizontalGradient(listOf(NeonGreen.copy(0.12f), NeonCyan.copy(0.08f))))
-            .border(1.dp, NeonGreen.copy(0.3f), RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .padding(18.dp)
+private fun HomeStatChip(value: String, label: String, icon: String, color: Color) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.WorkspacePremium, null, tint = NeonGreen, modifier = Modifier.size(28.dp))
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Upgrade to Premium", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("Unlock all notes, lectures & quizzes", color = TextSecondary, fontSize = 12.sp)
-            }
-            Text("→", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(icon, fontSize = 13.sp)
+            Spacer(Modifier.width(3.dp))
+            Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = color)
         }
+        Text(label, fontSize = 10.sp, color = TextMuted)
     }
 }
 
@@ -595,53 +471,146 @@ private fun QuickActionsGrid(
     onLeaderboard: () -> Unit,
     onPremium: () -> Unit
 ) {
-    val actions = listOf(
-        Triple("Notes",       Icons.Rounded.AutoStories,      onNotes),
-        Triple("Lectures",    Icons.Rounded.PlayCircle,       onLectures),
-        Triple("Tests",       Icons.Rounded.Quiz,             onTests),
-        Triple("Chats",       Icons.Rounded.Chat,             onChats),
-        Triple("Leaderboard", Icons.Rounded.EmojiEvents,      onLeaderboard),
-        Triple("Premium",     Icons.Rounded.WorkspacePremium, onPremium)
+    val items = listOf(
+        QuickAction("Notes",       Icons.Rounded.AutoStories,      AccentCyan,    onNotes),
+        QuickAction("Lectures",    Icons.Rounded.PlayCircle,        AccentEmerald, onLectures),
+        QuickAction("Tests",       Icons.Rounded.Quiz,              PremiumGold,   onTests),
+        QuickAction("Community",   Icons.Rounded.Chat,              AccentIndigo,  onChats),
+        QuickAction("Leaderboard", Icons.Rounded.EmojiEvents,       AccentViolet,  onLeaderboard),
+        QuickAction("Premium",     Icons.Rounded.WorkspacePremium,  PremiumGold,   onPremium)
     )
-    val rows = actions.chunked(3)
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        rows.forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEach { (label, icon, action) ->
-                    QuickActionButton(label, icon, action, Modifier.weight(1f))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        items.forEach { item ->
+            QuickActionButton(item)
+        }
+    }
+}
+
+private data class QuickAction(
+    val label: String,
+    val icon: ImageVector,
+    val color: Color,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun QuickActionButton(item: QuickAction) {
+    Column(
+        modifier = Modifier
+            .clickable(onClick = item.onClick)
+            .padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .background(item.color.copy(0.12f), RoundedCornerShape(14.dp))
+                .border(1.dp, item.color.copy(0.3f), RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(item.icon, null, tint = item.color, modifier = Modifier.size(24.dp))
+        }
+        Text(item.label, fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
+    }
+}
+
+// ── Leaderboard preview ────────────────────────────────────────────────────────
+@Composable
+private fun LeaderboardPreviewSection(
+    entries: List<LeaderboardEntry>,
+    onSeeAll: () -> Unit,
+    currentUid: String
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Top Learners", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+            Text("View All →", fontSize = 12.sp, color = AccentCyan,
+                modifier = Modifier.clickable(onClick = onSeeAll))
+        }
+        NtfCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                entries.take(3).forEachIndexed { idx, entry ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val medals = listOf("🥇", "🥈", "🥉")
+                        Text(medals[idx], fontSize = 18.sp)
+                        Spacer(Modifier.width(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(AccentCyan.copy(0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                entry.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            val isYou = entry.uid == currentUid
+                            Row {
+                                Text(
+                                    entry.name,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
+                                if (isYou) {
+                                    Spacer(Modifier.width(6.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .background(AccentCyan.copy(0.2f), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                                    ) {
+                                        Text("You", fontSize = 9.sp, color = AccentCyan, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                            Text("Lv. ${entry.level}", fontSize = 10.sp, color = TextMuted)
+                        }
+                        Text(
+                            "${entry.xp} XP",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PremiumGold
+                        )
+                    }
                 }
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
 }
 
+// ── Motivational card (unused but referenced, kept) ────────────────────────────
 @Composable
-private fun QuickActionButton(
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    accentColor: Color = NeonGreen
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(SurfaceCard)
-            .border(1.dp, accentColor.copy(0.18f), RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .background(accentColor.copy(0.12f), RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, label, tint = accentColor, modifier = Modifier.size(24.dp))
+private fun MotivationalCard(user: User) {
+    val xpToNext = LevelUtils.xpForNextLevel(user.level) - user.xp
+    NtfCard(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("🎯", fontSize = 22.sp)
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text("Keep it up!", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Text(
+                    "$xpToNext XP to reach Level ${user.level + 1}",
+                    fontSize = 12.sp,
+                    color = TextSecondary
+                )
+            }
         }
-        Text(label, color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }

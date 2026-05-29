@@ -74,11 +74,17 @@ import com.nexttoppers.feed.ui.components.NeonDivider
 import com.nexttoppers.feed.ui.components.NtfCard
 import com.nexttoppers.feed.ui.components.NtfOutlinedButton
 import com.nexttoppers.feed.ui.components.SuccessToast
+import com.nexttoppers.feed.ui.theme.AccentCyan
+import com.nexttoppers.feed.ui.theme.AccentEmerald
+import com.nexttoppers.feed.ui.theme.AccentIndigo
+import com.nexttoppers.feed.ui.theme.AccentViolet
 import com.nexttoppers.feed.ui.theme.BackgroundBlack
 import com.nexttoppers.feed.ui.theme.ErrorRed
 import com.nexttoppers.feed.ui.theme.NeonCyan
 import com.nexttoppers.feed.ui.theme.NeonGreen
+import com.nexttoppers.feed.ui.theme.PremiumGold
 import com.nexttoppers.feed.ui.theme.SurfaceCard
+import com.nexttoppers.feed.ui.theme.SurfaceElevated
 import com.nexttoppers.feed.ui.theme.TextMuted
 import com.nexttoppers.feed.ui.theme.TextPrimary
 import com.nexttoppers.feed.ui.theme.TextSecondary
@@ -118,414 +124,320 @@ fun SettingsScreen(
         }
     }
 
-    val appVersion = remember {
-        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.0.0" }
-        catch (_: PackageManager.NameNotFoundException) { "2.0.0" }
-    }
-
     Box(modifier = Modifier.fillMaxSize().background(BackgroundBlack)) {
+        // Ambient glow
         Box(
-            Modifier.fillMaxWidth().height(220.dp)
-                .background(Brush.radialGradient(listOf(NeonCyan.copy(0.05f), Color.Transparent)))
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .background(Brush.radialGradient(listOf(AccentCyan.copy(0.05f), Color.Transparent)))
         )
 
         AnimatedVisibility(
             visible = visible,
-            enter   = fadeIn(tween(350)) + slideInVertically(tween(350)) { it / 8 }
+            enter   = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 8 }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
-                    .padding(top = 52.dp, bottom = 40.dp),
+                    .padding(top = 48.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // ── Top bar ───────────────────────────────────────────────────
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
                         Icon(Icons.Rounded.ArrowBack, null, tint = TextSecondary)
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        "Settings",
-                        style = TextStyle(
-                            fontSize   = 22.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            brush      = Brush.linearGradient(listOf(NeonGreen, NeonCyan)),
-                            shadow     = Shadow(NeonGreen.copy(0.3f), Offset.Zero, 10f)
+                    Column {
+                        Text(
+                            "Settings",
+                            style = TextStyle(
+                                fontSize   = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                brush      = Brush.linearGradient(listOf(AccentCyan, AccentViolet)),
+                                shadow     = Shadow(AccentCyan.copy(0.3f), Offset.Zero, 8f)
+                            )
                         )
-                    )
+                        Text("Manage your preferences & app experience", fontSize = 11.sp, color = TextMuted)
+                    }
                 }
 
                 // ── Notifications ─────────────────────────────────────────────
-                SettingsSection("Notifications") {
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.Notifications,
-                        label = "Push Notifications",
-                        subtitle = "Receive updates and alerts",
-                        checked = pushEnabled,
-                        onCheckedChange = viewModel::setPushNotifications
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.Notifications,
-                        label = "Announcements",
-                        subtitle = "Important platform alerts",
-                        checked = announcementEnabled,
-                        onCheckedChange = viewModel::setAnnouncementAlerts
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.Notifications,
-                        label = "Quiz Reminders",
-                        subtitle = "Daily study reminders",
-                        checked = quizReminders,
-                        onCheckedChange = viewModel::setQuizReminders
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.Notifications,
-                        label = "Streak Reminders",
-                        subtitle = "Don't break your streak",
-                        checked = streakReminders,
-                        onCheckedChange = viewModel::setStreakReminders
-                    )
+                SettingsSection(title = "🔔 Notifications", accentColor = AccentCyan) {
+                    SettingsToggleRow("Push Notifications",  "Receive all app push alerts", pushEnabled,         viewModel::setPushNotifications)
+                    NeonDivider()
+                    SettingsToggleRow("Announcements",       "Teacher & school updates",    announcementEnabled, viewModel::setAnnouncementAlerts)
+                    NeonDivider()
+                    SettingsToggleRow("Quiz Reminders",      "Never miss a scheduled quiz", quizReminders,       viewModel::setQuizReminders)
+                    NeonDivider()
+                    SettingsToggleRow("Streak Reminders",    "Keep your streak alive",      streakReminders,     viewModel::setStreakReminders)
                 }
 
-                // ── Downloads ─────────────────────────────────────────────────
-                SettingsSection("Downloads & Storage") {
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.Wifi,
-                        label = "Wi-Fi Only Downloads",
-                        subtitle = "Don't use mobile data",
-                        checked = wifiOnly,
-                        onCheckedChange = viewModel::setWifiOnlyDownloads,
-                        iconTint = NeonCyan
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsNavRow(
-                        icon = Icons.Rounded.Download,
-                        label = "Offline Library",
-                        subtitle = "Manage downloaded files",
-                        iconTint = NeonCyan,
-                        onClick = onNavigateToDownloads
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsNavRow(
-                        icon = Icons.Rounded.ClearAll,
-                        label = "Clear Cache",
-                        subtitle = "Free up storage space",
-                        iconTint = NeonCyan,
-                        onClick = { showClearCacheDialog = true }
-                    )
+                // ── Downloads & Storage ───────────────────────────────────────
+                SettingsSection(title = "📦 Downloads & Storage", accentColor = AccentEmerald) {
+                    SettingsToggleRow("Wi-Fi Only Downloads", "Save mobile data",           wifiOnly, viewModel::setWifiOnlyDownloads)
+                    NeonDivider()
+                    SettingsNavRow(Icons.Rounded.Download, "Offline Library", "View downloaded files", onClick = onNavigateToDownloads)
+                    NeonDivider()
+                    SettingsNavRow(Icons.Rounded.ClearAll, "Clear Cache", "Free up space · tap to clear",
+                        onClick = { showClearCacheDialog = true }, tintColor = ErrorRed.copy(0.8f))
                 }
 
                 // ── Privacy ───────────────────────────────────────────────────
-                SettingsSection("Privacy") {
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.PrivacyTip,
-                        label = "Usage Analytics",
-                        subtitle = "Help us improve the app",
-                        checked = analytics,
-                        onCheckedChange = viewModel::setAnalyticsEnabled,
-                        iconTint = TextSecondary
-                    )
+                SettingsSection(title = "🔒 Privacy", accentColor = AccentViolet) {
+                    SettingsToggleRow("Usage Analytics", "Help improve the app (anonymous)", analytics, viewModel::setAnalyticsEnabled)
                 }
 
-                // ── Support ───────────────────────────────────────────────────
-                SettingsSection("Support & Feedback") {
-                    SettingsNavRow(
-                        icon = Icons.Rounded.BugReport,
-                        label = "Report an Issue",
-                        subtitle = "Found a bug? Let us know",
-                        iconTint = Color(0xFFFF4D6D),
-                        onClick = onNavigateToReportIssue
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsNavRow(
-                        icon = Icons.Rounded.Feedback,
-                        label = "App Feedback",
-                        subtitle = "Share your thoughts with us",
-                        iconTint = Color(0xFFFFD700),
-                        onClick = onNavigateToFeedback
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsNavRow(
-                        icon = Icons.Rounded.HelpOutline,
-                        label = "Help & FAQ",
-                        iconTint = NeonGreen,
-                        onClick = { openUrl(context, "https://nexttopper-feed.pages.dev") }
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsNavRow(
-                        icon = Icons.Rounded.Share,
-                        label = "Share App",
-                        iconTint = NeonGreen,
-                        onClick = { shareApp(context) }
-                    )
+                // ── Support & Feedback ────────────────────────────────────────
+                SettingsSection(title = "💡 Support & Feedback", accentColor = PremiumGold) {
+                    SettingsNavRow(Icons.Rounded.BugReport,   "Report an Issue",  "Found a bug?",               onClick = onNavigateToReportIssue)
+                    NeonDivider()
+                    SettingsNavRow(Icons.Rounded.Feedback,    "App Feedback",     "Share your thoughts",         onClick = onNavigateToFeedback)
+                    NeonDivider()
+                    SettingsNavRow(Icons.Rounded.HelpOutline, "Help & FAQ",       "Guides & answers",
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://nexttoppers.in/help")))
+                        })
+                    NeonDivider()
+                    SettingsNavRow(Icons.Rounded.Share, "Share App", "Tell your friends",
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "Check out Next Toppers Feed — https://nexttoppers.in")
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share via"))
+                        })
                 }
 
-                // ── Legal ─────────────────────────────────────────────────────
-                SettingsSection("Legal") {
-                    SettingsNavRow(
-                        icon = Icons.Rounded.Policy,
-                        label = "Privacy Policy",
-                        iconTint = TextSecondary,
-                        onClick = onNavigateToPrivacyPolicy
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsNavRow(
-                        icon = Icons.Rounded.Security,
-                        label = "Terms of Service",
-                        iconTint = TextSecondary,
-                        onClick = onNavigateToTerms
-                    )
-                    NeonDivider(Modifier.padding(vertical = 2.dp))
-                    SettingsNavRow(
-                        icon = Icons.Rounded.Info,
-                        label = "About Next Toppers Feed",
-                        iconTint = NeonCyan,
-                        onClick = onNavigateToAbout
-                    )
-                }
-
-                // ── Account ───────────────────────────────────────────────────
-                SettingsSection("Account") {
-                    SettingsNavRow(
-                        icon = Icons.Rounded.DeleteForever,
-                        label = "Delete Account",
-                        subtitle = "Permanently remove your data",
-                        iconTint = ErrorRed,
-                        onClick = { showDeleteAccountDialog = true }
-                    )
+                // ── About & Legal ─────────────────────────────────────────────
+                SettingsSection(title = "📄 About & Legal", accentColor = AccentIndigo) {
+                    SettingsNavRow(Icons.Rounded.Policy,       "Privacy Policy",    "How we handle your data",  onClick = onNavigateToPrivacyPolicy)
+                    NeonDivider()
+                    SettingsNavRow(Icons.Rounded.Security,     "Terms of Service",  "Usage rules & guidelines", onClick = onNavigateToTerms)
+                    NeonDivider()
+                    SettingsNavRow(Icons.Rounded.Info,         "About",             "Version & credits",         onClick = onNavigateToAbout)
                 }
 
                 // ── App version card ──────────────────────────────────────────
-                NtfCard(modifier = Modifier.fillMaxWidth(), borderColor = NeonGreen.copy(0.12f)) {
+                val versionName = try {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                } catch (_: PackageManager.NameNotFoundException) { "2.0.0" }
+
+                NtfCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                Modifier.size(36.dp).background(NeonGreen.copy(0.1f), RoundedCornerShape(10.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Rounded.Info, null, tint = NeonGreen, modifier = Modifier.size(18.dp))
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text("Next Toppers Feed", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Text("nexttopper-feed.pages.dev", color = TextMuted, fontSize = 10.sp)
-                            }
+                        Column {
+                            Text("Next Toppers Feed", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text("nexttoppers.in", fontSize = 11.sp, color = TextMuted)
                         }
                         Box(
-                            Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(NeonGreen.copy(0.12f))
-                                .border(1.dp, NeonGreen.copy(0.35f), RoundedCornerShape(8.dp))
+                            modifier = Modifier
+                                .background(AccentCyan.copy(0.1f), RoundedCornerShape(8.dp))
+                                .border(1.dp, AccentCyan.copy(0.3f), RoundedCornerShape(8.dp))
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Text("v$appVersion", color = NeonGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("v$versionName", fontSize = 11.sp, color = AccentCyan, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
-                // ── Sign out ──────────────────────────────────────────────────
+                // ── Account actions ───────────────────────────────────────────
+                SettingsSection(title = "⚠️ Account", accentColor = ErrorRed) {
+                    SettingsNavRow(
+                        Icons.Rounded.DeleteForever, "Delete Account",
+                        "Permanently remove your account",
+                        onClick = { showDeleteAccountDialog = true },
+                        tintColor = ErrorRed
+                    )
+                }
+
                 NtfOutlinedButton(
-                    text        = "Sign Out",
-                    onClick     = { showSignOutDialog = true },
-                    accentColor = ErrorRed
+                    text       = "Sign Out",
+                    onClick    = { showSignOutDialog = true },
+                    accentColor = ErrorRed,
+                    modifier   = Modifier.fillMaxWidth()
                 )
             }
         }
 
-        // ── Toast ─────────────────────────────────────────────────────────────
-        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp)) {
-            SuccessToast(message = uiState.successMessage, onDismiss = viewModel::clearMessages)
-        }
+        // ── Success toast ─────────────────────────────────────────────────────
+        SuccessToast(
+            message  = uiState.successMessage,
+            onDismiss = viewModel::clearMessages
+        )
     }
 
-    // ── Clear cache dialog ────────────────────────────────────────────────────
+    // ── Dialogs ───────────────────────────────────────────────────────────────
     if (showClearCacheDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearCacheDialog = false },
-            title = { Text("Clear Cache?", color = NeonCyan, fontWeight = FontWeight.Bold) },
-            text  = {
-                Text(
-                    "This will delete all cached images and temporarily downloaded data. Permanently downloaded offline files are kept.",
-                    color = TextSecondary, fontSize = 13.sp
-                )
+        NtfAlertDialog(
+            title   = "Clear Cache?",
+            body    = "This will delete all temporary files. Your downloads and data won't be affected.",
+            confirm = "Clear",
+            dismiss = "Cancel",
+            onConfirm = {
+                viewModel.clearCache(context)
+                showClearCacheDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.clearCache(context)
-                    showClearCacheDialog = false
-                }) { Text("Clear Cache", color = ErrorRed, fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearCacheDialog = false }) { Text("Cancel", color = TextMuted) }
-            },
-            containerColor = SurfaceCard
+            onDismiss = { showClearCacheDialog = false }
         )
     }
 
-    // ── Sign out dialog ───────────────────────────────────────────────────────
     if (showSignOutDialog) {
-        AlertDialog(
-            onDismissRequest = { showSignOutDialog = false },
-            title = { Text("Sign Out?", color = TextPrimary, fontWeight = FontWeight.Bold) },
-            text  = { Text("You'll be returned to the login screen. Your data and progress are safely stored.", color = TextSecondary, fontSize = 13.sp) },
-            confirmButton = {
-                TextButton(onClick = { showSignOutDialog = false; onSignOut() }) {
-                    Text("Sign Out", color = ErrorRed, fontWeight = FontWeight.Bold)
-                }
+        NtfAlertDialog(
+            title   = "Sign Out?",
+            body    = "You'll need to sign in again to access your account.",
+            confirm = "Sign Out",
+            dismiss = "Stay",
+            onConfirm = {
+                showSignOutDialog = false
+                onSignOut()
             },
-            dismissButton = {
-                TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel", color = TextMuted) }
-            },
-            containerColor = SurfaceCard
+            onDismiss = { showSignOutDialog = false }
         )
     }
 
-    // ── Delete account dialog ─────────────────────────────────────────────────
     if (showDeleteAccountDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteAccountDialog = false },
-            title = { Text("Delete Account", color = ErrorRed, fontWeight = FontWeight.Bold) },
-            text  = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        "Deleting your account will permanently erase all your data, XP, streaks, and premium access. This cannot be undone.",
-                        color = TextSecondary, fontSize = 13.sp
-                    )
-                    Box(
-                        Modifier.fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(ErrorRed.copy(0.08f))
-                            .border(1.dp, ErrorRed.copy(0.3f), RoundedCornerShape(8.dp))
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            "⚠️ To proceed, email us at nexttoppersfeed@gmail.com with subject: \"Account Deletion Request\".",
-                            color = ErrorRed, fontSize = 12.sp, lineHeight = 18.sp
-                        )
-                    }
+        NtfAlertDialog(
+            title   = "Delete Account",
+            body    = "This action cannot be undone. All your data, XP, and progress will be permanently deleted. Contact support to proceed.",
+            confirm = "Email Support",
+            dismiss = "Cancel",
+            isDestructive = true,
+            onConfirm = {
+                val intent = Intent(Intent.ACTION_SENDTO).apply {
+                    data = Uri.parse("mailto:nexttoppersfeed@gmail.com")
+                    putExtra(Intent.EXTRA_SUBJECT, "Account Deletion Request")
                 }
+                context.startActivity(intent)
+                showDeleteAccountDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteAccountDialog = false
-                    openUrl(context, "mailto:nexttoppersfeed@gmail.com?subject=Account%20Deletion%20Request&body=Please%20delete%20my%20account%20and%20all%20associated%20data.")
-                }) { Text("Email Support", color = ErrorRed, fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteAccountDialog = false }) { Text("Cancel", color = TextMuted) }
-            },
-            containerColor = SurfaceCard
+            onDismiss = { showDeleteAccountDialog = false }
         )
     }
 }
 
-// ── Section container ──────────────────────────────────────────────────────────
 @Composable
-private fun SettingsSection(title: String, content: @Composable () -> Unit) {
+private fun SettingsSection(
+    title: String,
+    accentColor: Color,
+    content: @Composable () -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
         Text(
-            title.uppercase(),
-            color = NeonGreen.copy(0.7f), fontSize = 10.sp,
-            fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp,
-            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+            title,
+            fontSize   = 12.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color      = accentColor,
+            modifier   = Modifier.padding(start = 4.dp, bottom = 8.dp)
         )
-        NtfCard(modifier = Modifier.fillMaxWidth(), innerPadding = 14.dp) {
-            Column { content() }
+        NtfCard(
+            modifier    = Modifier.fillMaxWidth(),
+            borderColor = accentColor.copy(0.12f)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                content()
+            }
         }
     }
 }
 
-// ── Toggle row ─────────────────────────────────────────────────────────────────
 @Composable
 private fun SettingsToggleRow(
-    icon: ImageVector,
-    label: String,
-    subtitle: String? = null,
+    title: String,
+    subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    iconTint: Color = NeonGreen
+    onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(
-            Modifier.size(34.dp).background(iconTint.copy(0.1f), RoundedCornerShape(10.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, null, tint = iconTint, modifier = Modifier.size(17.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(label, color = TextPrimary, fontSize = 13.sp)
-            if (subtitle != null) Text(subtitle, color = TextMuted, fontSize = 11.sp)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontSize = 14.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+            Text(subtitle, fontSize = 11.sp, color = TextMuted)
         }
         Switch(
-            checked = checked,
+            checked         = checked,
             onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor    = BackgroundBlack,
-                checkedTrackColor    = NeonGreen,
-                uncheckedThumbColor  = TextSecondary,
-                uncheckedTrackColor  = SurfaceCard
+            colors          = SwitchDefaults.colors(
+                checkedThumbColor       = Color.White,
+                checkedTrackColor       = AccentCyan,
+                uncheckedThumbColor     = TextMuted,
+                uncheckedTrackColor     = SurfaceElevated,
+                uncheckedBorderColor    = SurfaceElevated
             )
         )
     }
 }
 
-// ── Navigation row ─────────────────────────────────────────────────────────────
 @Composable
 private fun SettingsNavRow(
     icon: ImageVector,
-    label: String,
-    subtitle: String? = null,
-    iconTint: Color = NeonGreen,
-    onClick: () -> Unit = {}
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    tintColor: Color = AccentCyan
 ) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier.size(34.dp).background(iconTint.copy(0.1f), RoundedCornerShape(10.dp)),
+            modifier = Modifier
+                .size(36.dp)
+                .background(tintColor.copy(0.1f), RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = iconTint, modifier = Modifier.size(17.dp))
+            Icon(icon, null, tint = tintColor, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(label, color = TextPrimary, fontSize = 13.sp)
-            if (subtitle != null) Text(subtitle, color = TextMuted, fontSize = 11.sp)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontSize = 14.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+            Text(subtitle, fontSize = 11.sp, color = TextMuted)
         }
-        Icon(Icons.Rounded.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(18.dp))
+        Icon(Icons.Rounded.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(16.dp))
     }
 }
 
-// ── Utility functions ──────────────────────────────────────────────────────────
-private fun openUrl(context: Context, url: String) {
-    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-}
-
-private fun shareApp(context: Context) {
-    runCatching {
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(
-                Intent.EXTRA_TEXT,
-                "📚 Study smarter with Next Toppers Feed — Notes, Quizzes & Rankings!\n" +
-                "https://nexttopper-feed.pages.dev"
-            )
+@Composable
+private fun NtfAlertDialog(
+    title: String,
+    body: String,
+    confirm: String,
+    dismiss: String,
+    isDestructive: Boolean = false,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest   = onDismiss,
+        containerColor     = SurfaceCard,
+        titleContentColor  = TextPrimary,
+        textContentColor   = TextSecondary,
+        title  = { Text(title, fontWeight = FontWeight.Bold) },
+        text   = { Text(body, lineHeight = 20.sp) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(confirm, color = if (isDestructive) ErrorRed else AccentCyan, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(dismiss, color = TextSecondary)
+            }
         }
-        context.startActivity(Intent.createChooser(intent, "Share Next Toppers Feed"))
-    }
+    )
 }

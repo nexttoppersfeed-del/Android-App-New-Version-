@@ -1,14 +1,5 @@
 package com.nexttoppers.feed.ui.chats
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,21 +16,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -52,19 +40,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.nexttoppers.feed.data.model.Chat
 import com.nexttoppers.feed.data.model.ChatType
 import com.nexttoppers.feed.ui.community.CommunityScreen
+import com.nexttoppers.feed.ui.theme.AccentCyan
+import com.nexttoppers.feed.ui.theme.AccentEmerald
+import com.nexttoppers.feed.ui.theme.AccentIndigo
 import com.nexttoppers.feed.ui.theme.BackgroundBlack
-import com.nexttoppers.feed.ui.theme.NeonCyan
-import com.nexttoppers.feed.ui.theme.NeonGreen
-import com.nexttoppers.feed.ui.theme.PremiumGold
 import com.nexttoppers.feed.ui.theme.SurfaceCard
 import com.nexttoppers.feed.ui.theme.SurfaceElevated
 import com.nexttoppers.feed.ui.theme.TextMuted
@@ -82,71 +71,31 @@ fun ChatsScreen(
     onNavigateToGroup: (String) -> Unit = {},
     viewModel: ChatListViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState     by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-
+    val currentUid  = viewModel.currentUid
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf(
-        Triple("Chats",     Icons.Rounded.Chat,  null as Int?),
-        Triple("Community", Icons.Rounded.Forum, null)
-    )
 
-    Column(
-        modifier = Modifier.fillMaxSize().background(BackgroundBlack)
-    ) {
-        ChatsTopBar()
+    Column(modifier = Modifier.fillMaxSize().background(BackgroundBlack)) {
 
-        ScrollableTabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = BackgroundBlack,
-            edgePadding = 16.dp,
-            indicator = { tabPositions ->
-                if (selectedTab < tabPositions.size) {
-                    Box(
-                        Modifier
-                            .tabIndicatorOffset(tabPositions[selectedTab])
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                            .background(NeonGreen)
-                    )
-                }
-            },
-            divider = {}
-        ) {
-            tabs.forEachIndexed { index, (label, icon, _) ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    modifier = Modifier.padding(bottom = 2.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp)
-                    ) {
-                        Icon(
-                            icon, null,
-                            tint = if (selectedTab == index) NeonGreen else TextMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            label,
-                            color = if (selectedTab == index) NeonGreen else TextMuted,
-                            fontSize = 13.sp,
-                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                }
-            }
-        }
+        // ── Top bar ───────────────────────────────────────────────────────────
+        ConnectTopBar(selectedTab = selectedTab)
 
+        // ── Tabs ──────────────────────────────────────────────────────────────
+        ConnectTabs(
+            selectedTab  = selectedTab,
+            onTabSelected = { selectedTab = it }
+        )
+
+        // ── Content ───────────────────────────────────────────────────────────
         when (selectedTab) {
             0 -> ChatListContent(
-                uiState = uiState,
-                searchQuery = searchQuery,
-                currentUid = viewModel.currentUid,
+                uiState        = uiState,
+                searchQuery    = searchQuery,
+                currentUid     = currentUid,
                 onSearchChange = viewModel::setSearchQuery,
-                onChatClick = onNavigateToChat
+                onChatClick    = onNavigateToChat,
+                onGroupClick   = onNavigateToGroup
             )
             1 -> CommunityScreen(
                 onNavigateToCreatePost = onNavigateToCreatePost,
@@ -157,35 +106,89 @@ fun ChatsScreen(
 }
 
 @Composable
-private fun ChatsTopBar() {
-    val infiniteTransition = rememberInfiniteTransition(label = "top_glow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f, targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "glow"
-    )
+private fun ConnectTopBar(selectedTab: Int) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column {
             Text(
                 "Connect",
-                color = TextPrimary,
+                color      = TextPrimary,
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 26.sp
+                fontSize   = 26.sp
             )
-            Text("Chats · Community", color = TextMuted, fontSize = 12.sp)
+            Text(
+                if (selectedTab == 0) "Your conversations" else "Community chat room",
+                color    = TextMuted,
+                fontSize = 12.sp
+            )
         }
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(Brush.radialGradient(listOf(NeonGreen.copy(alpha = glowAlpha * 0.2f), Color.Transparent)))
-                .border(1.dp, NeonGreen.copy(alpha = glowAlpha * 0.5f), CircleShape),
+                .size(40.dp)
+                .background(AccentEmerald.copy(0.12f), RoundedCornerShape(12.dp))
+                .border(1.dp, AccentEmerald.copy(0.3f), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Rounded.Chat, null, tint = NeonGreen, modifier = Modifier.size(20.dp))
+            Icon(
+                if (selectedTab == 0) Icons.Rounded.Chat else Icons.Rounded.Forum,
+                null,
+                tint     = AccentEmerald,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConnectTabs(selectedTab: Int, onTabSelected: (Int) -> Unit) {
+    val tabItems = listOf(
+        Pair("Chats",     Icons.Rounded.Chat),
+        Pair("Community", Icons.Rounded.Forum)
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 12.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(SurfaceCard),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        tabItems.forEachIndexed { idx, (label, icon) ->
+            val isSelected = selectedTab == idx
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(4.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        if (isSelected) Brush.linearGradient(listOf(AccentEmerald, AccentCyan))
+                        else Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+                    )
+                    .clickable { onTabSelected(idx) }
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                Icon(
+                    icon, null,
+                    tint     = if (isSelected) Color.White else TextMuted,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    label,
+                    color      = if (isSelected) Color.White else TextMuted,
+                    fontSize   = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                )
+            }
         }
     }
 }
@@ -196,48 +199,79 @@ private fun ChatListContent(
     searchQuery: String,
     currentUid: String,
     onSearchChange: (String) -> Unit,
-    onChatClick: (String) -> Unit
+    onChatClick: (String) -> Unit,
+    onGroupClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         OutlinedTextField(
-            value = searchQuery,
+            value         = searchQuery,
             onValueChange = onSearchChange,
-            placeholder = { Text("Search chats...", color = TextMuted, fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Rounded.Search, null, tint = TextMuted, modifier = Modifier.size(18.dp)) },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(14.dp),
+            placeholder   = { Text("Search conversations...", color = TextMuted, fontSize = 13.sp) },
+            leadingIcon   = { Icon(Icons.Rounded.Search, null, tint = TextMuted, modifier = Modifier.size(18.dp)) },
+            modifier      = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 8.dp),
+            shape  = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = NeonGreen,
-                unfocusedBorderColor = SurfaceElevated,
-                cursorColor = NeonGreen
+                focusedContainerColor   = SurfaceCard,
+                unfocusedContainerColor = SurfaceCard,
+                focusedBorderColor      = AccentCyan.copy(0.6f),
+                unfocusedBorderColor    = SurfaceElevated,
+                focusedTextColor        = TextPrimary,
+                unfocusedTextColor      = TextPrimary
             ),
             singleLine = true
         )
 
         when (uiState) {
-            is ChatListUiState.Loading -> Box(
-                Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator(color = NeonGreen, strokeWidth = 2.dp) }
-
-            is ChatListUiState.Error -> Box(
-                Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-            ) { Text(uiState.message, color = TextSecondary, fontSize = 14.sp) }
-
+            is ChatListUiState.Loading -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AccentCyan, modifier = Modifier.size(28.dp))
+                }
+            }
+            is ChatListUiState.Error -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(uiState.message, color = TextSecondary, fontSize = 13.sp)
+                }
+            }
             is ChatListUiState.Success -> {
-                if (uiState.chats.isEmpty()) {
-                    EmptyChatListState()
-                } else {
-                    LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
-                        itemsIndexed(uiState.chats) { index, chat ->
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn(tween(200 + index * 50)) + expandVertically(tween(200 + index * 50))
+                val chats = uiState.chats
+                if (chats.isEmpty()) {
+                    EmptyChatList()
+                    return@Column
+                }
+                val filtered = if (searchQuery.isBlank()) chats
+                else chats.filter {
+                    it.getDisplayName(currentUid).contains(searchQuery, ignoreCase = true)
+                }
+
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 100.dp)
+                ) {
+                    item { PinnedCommunityBanner() }
+
+                    itemsIndexed(filtered) { _, chat ->
+                        val isGroup = chat.type == ChatType.GROUP.name ||
+                                chat.type == ChatType.STUDY_ROOM.name ||
+                                chat.type == ChatType.SUBJECT_GROUP.name
+                        ChatRow(
+                            chat       = chat,
+                            currentUid = currentUid,
+                            onClick    = {
+                                if (isGroup) onGroupClick(chat.chatId)
+                                else onChatClick(chat.chatId)
+                            }
+                        )
+                    }
+
+                    if (filtered.isEmpty() && searchQuery.isNotBlank()) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                ChatListItem(
-                                    chat = chat,
-                                    currentUid = currentUid,
-                                    onClick = { onChatClick(chat.chatId) }
-                                )
+                                Text("No chats match \"$searchQuery\"", color = TextMuted, fontSize = 13.sp)
                             }
                         }
                     }
@@ -248,128 +282,170 @@ private fun ChatListContent(
 }
 
 @Composable
-private fun ChatListItem(chat: Chat, currentUid: String, onClick: () -> Unit) {
-    val displayName = chat.getDisplayName(currentUid)
-    val unread = chat.getUnreadCount(currentUid)
-    val isGroup = chat.type != ChatType.PRIVATE.name
+private fun PinnedCommunityBanner() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(AccentEmerald.copy(0.08f))
+            .border(1.dp, AccentEmerald.copy(0.25f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(
+                    Brush.linearGradient(listOf(AccentEmerald, AccentCyan)),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Rounded.Group, null, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Chat with Community",
+                    fontWeight = FontWeight.Bold,
+                    fontSize   = 14.sp,
+                    color      = TextPrimary
+                )
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .background(AccentEmerald.copy(0.15f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                ) {
+                    Text("Group", fontSize = 9.sp, color = AccentEmerald, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text("All members · Active now", fontSize = 11.sp, color = TextMuted)
+        }
+        Box(modifier = Modifier.size(8.dp).background(AccentEmerald, CircleShape))
+    }
+}
+
+@Composable
+private fun ChatRow(
+    chat: Chat,
+    currentUid: String,
+    onClick: () -> Unit
+) {
+    val displayName  = chat.getDisplayName(currentUid)
+    val displayPhoto = chat.getDisplayPhoto(currentUid)
+    val unreadCount  = chat.getUnreadCount(currentUid)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box {
-            val avatarColor = if (isGroup) NeonCyan else NeonGreen
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(avatarColor.copy(alpha = 0.15f))
-                    .border(1.5.dp, avatarColor.copy(alpha = 0.4f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (isGroup) "👥" else displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                    fontSize = if (isGroup) 22.sp else 18.sp,
-                    color = avatarColor,
-                    fontWeight = FontWeight.Bold
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(listOf(AccentCyan.copy(0.3f), AccentIndigo.copy(0.3f)))
                 )
-            }
-            if (chat.pinned) {
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .align(Alignment.TopEnd)
-                        .clip(CircleShape)
-                        .background(PremiumGold),
-                    contentAlignment = Alignment.Center
-                ) { Text("📌", fontSize = 8.sp) }
+                .border(1.dp, AccentCyan.copy(0.2f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (displayPhoto.isNotEmpty()) {
+                AsyncImage(
+                    model              = displayPhoto,
+                    contentDescription = null,
+                    contentScale       = ContentScale.Crop,
+                    modifier           = Modifier.fillMaxSize().clip(CircleShape)
+                )
+            } else {
+                Text(
+                    displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                    fontSize   = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = TextPrimary
+                )
             }
         }
 
         Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    displayName,
-                    color = TextPrimary,
-                    fontWeight = if (unread > 0) FontWeight.Bold else FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    formatChatTime(chat.lastMessageTime.toDate()),
-                    color = if (unread > 0) NeonGreen else TextMuted,
-                    fontSize = 11.sp
-                )
+            Text(
+                displayName,
+                fontWeight = FontWeight.SemiBold,
+                fontSize   = 14.sp,
+                color      = TextPrimary,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis
+            )
+            Text(
+                chat.lastMessage.ifEmpty { "Start the conversation" },
+                fontSize = 12.sp,
+                color    = TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(Modifier.width(8.dp))
+
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val timeStr = try {
+                SimpleDateFormat("HH:mm", Locale.getDefault()).format(chat.lastMessageTime.toDate())
+            } catch (_: Exception) { "" }
+            if (timeStr.isNotEmpty()) {
+                Text(timeStr, fontSize = 10.sp, color = TextMuted)
             }
-            Spacer(Modifier.height(3.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    chat.lastMessage.ifBlank { "No messages yet" },
-                    color = if (unread > 0) TextSecondary else TextMuted,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                if (unread > 0) {
-                    Spacer(Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(NeonGreen),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            if (unread > 99) "99+" else "$unread",
-                            color = BackgroundBlack,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
+            if (unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .background(AccentCyan, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "${minOf(unreadCount, 99)}",
+                        fontSize   = 9.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = Color.White
+                    )
                 }
             }
         }
     }
 
-    Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).padding(start = 80.dp).background(SurfaceElevated))
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .padding(horizontal = 16.dp)
+            .background(SurfaceElevated)
+    )
 }
 
 @Composable
-private fun EmptyChatListState() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("💬", fontSize = 52.sp)
-            Spacer(Modifier.height(16.dp))
-            Text("No chats yet", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Start a conversation from a user's profile\nor join a group to get started",
-                color = TextSecondary,
-                fontSize = 13.sp,
-                lineHeight = 20.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-        }
-    }
-}
-
-private fun formatChatTime(date: Date): String {
-    val now = System.currentTimeMillis()
-    val diff = now - date.time
-    return when {
-        diff < 60_000     -> "now"
-        diff < 3_600_000  -> "${diff / 60_000}m"
-        diff < 86_400_000 -> "${diff / 3_600_000}h"
-        diff < 604_800_000 -> SimpleDateFormat("EEE", Locale.getDefault()).format(date)
-        else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(date)
+private fun EmptyChatList() {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("💬", fontSize = 48.sp)
+        Spacer(Modifier.height(16.dp))
+        Text("No chats yet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Your private conversations will appear here.",
+            fontSize = 13.sp,
+            color    = TextSecondary
+        )
     }
 }
