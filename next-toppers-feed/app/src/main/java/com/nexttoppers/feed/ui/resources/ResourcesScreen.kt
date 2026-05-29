@@ -195,7 +195,6 @@ fun ResourcesScreen(
                                 ResourceListCard(
                                     resource  = resource,
                                     onClick   = { onNavigateToDetail(resource.id) },
-                                    modifier  = Modifier.padding(horizontal = 20.dp, vertical = 5.dp)
                                 )
                             }
                         }
@@ -231,7 +230,7 @@ fun ResourcesScreen(
                                     ResourceListCard(
                                         resource = resource,
                                         onClick  = { onNavigateToDetail(resource.id) },
-                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 5.dp)
+                                    
                                     )
                                 }
                             }
