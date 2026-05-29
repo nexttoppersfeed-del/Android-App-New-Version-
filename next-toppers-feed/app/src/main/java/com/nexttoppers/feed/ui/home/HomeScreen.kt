@@ -76,6 +76,7 @@ import com.nexttoppers.feed.ui.theme.AccentBlue
 import com.nexttoppers.feed.ui.theme.AccentCyan
 import com.nexttoppers.feed.ui.theme.AccentIndigo
 import com.nexttoppers.feed.ui.theme.AccentViolet
+import com.nexttoppers.feed.ui.theme.AccentEmerald
 import com.nexttoppers.feed.ui.theme.BackgroundBlack
 import com.nexttoppers.feed.ui.theme.NeonCyan
 import com.nexttoppers.feed.ui.theme.NeonGreen
