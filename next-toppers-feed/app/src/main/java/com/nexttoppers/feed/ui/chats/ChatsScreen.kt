@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -60,7 +61,6 @@ import com.nexttoppers.feed.ui.theme.TextMuted
 import com.nexttoppers.feed.ui.theme.TextPrimary
 import com.nexttoppers.feed.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -73,33 +73,41 @@ fun ChatsScreen(
 ) {
     val uiState     by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val pendingNav  by viewModel.pendingNavigation.collectAsState()
     val currentUid  = viewModel.currentUid
     var selectedTab by remember { mutableIntStateOf(0) }
 
+    // Handle DM navigation triggered by openDm()
+    LaunchedEffect(pendingNav) {
+        pendingNav?.let { chatId ->
+            viewModel.consumeNavigation()
+            onNavigateToChat(chatId)
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(BackgroundBlack)) {
 
-        // ── Top bar ───────────────────────────────────────────────────────────
         ConnectTopBar(selectedTab = selectedTab)
 
-        // ── Tabs ──────────────────────────────────────────────────────────────
         ConnectTabs(
-            selectedTab  = selectedTab,
+            selectedTab   = selectedTab,
             onTabSelected = { selectedTab = it }
         )
 
-        // ── Content ───────────────────────────────────────────────────────────
         when (selectedTab) {
             0 -> ChatListContent(
-                uiState        = uiState,
-                searchQuery    = searchQuery,
-                currentUid     = currentUid,
-                onSearchChange = viewModel::setSearchQuery,
-                onChatClick    = onNavigateToChat,
-                onGroupClick   = onNavigateToGroup
+                uiState         = uiState,
+                searchQuery     = searchQuery,
+                currentUid      = currentUid,
+                onSearchChange  = viewModel::setSearchQuery,
+                onChatClick     = onNavigateToChat,
+                onGroupClick    = onNavigateToGroup,
+                onCommunityClick = { selectedTab = 1 }
             )
             1 -> CommunityScreen(
                 onNavigateToCreatePost = onNavigateToCreatePost,
-                onNavigateToPostDetail = onNavigateToPostDetail
+                onNavigateToPostDetail = onNavigateToPostDetail,
+                onOpenDmWith           = { userId -> viewModel.openDm(userId) }
             )
         }
     }
@@ -200,7 +208,8 @@ private fun ChatListContent(
     currentUid: String,
     onSearchChange: (String) -> Unit,
     onChatClick: (String) -> Unit,
-    onGroupClick: (String) -> Unit
+    onGroupClick: (String) -> Unit,
+    onCommunityClick: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         OutlinedTextField(
@@ -246,10 +255,10 @@ private fun ChatListContent(
                     it.getDisplayName(currentUid).contains(searchQuery, ignoreCase = true)
                 }
 
-                LazyColumn(
-                    contentPadding = PaddingValues(bottom = 100.dp)
-                ) {
-                    item { PinnedCommunityBanner() }
+                LazyColumn(contentPadding = PaddingValues(bottom = 100.dp)) {
+                    item {
+                        PinnedCommunityBanner(onClick = onCommunityClick)
+                    }
 
                     itemsIndexed(filtered) { _, chat ->
                         val isGroup = chat.type == ChatType.GROUP.name ||
@@ -271,7 +280,11 @@ private fun ChatListContent(
                                 modifier = Modifier.fillMaxWidth().padding(32.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("No chats match \"$searchQuery\"", color = TextMuted, fontSize = 13.sp)
+                                Text(
+                                    "No chats match \"$searchQuery\"",
+                                    color    = TextMuted,
+                                    fontSize = 13.sp
+                                )
                             }
                         }
                     }
@@ -282,7 +295,7 @@ private fun ChatListContent(
 }
 
 @Composable
-private fun PinnedCommunityBanner() {
+private fun PinnedCommunityBanner(onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -290,6 +303,7 @@ private fun PinnedCommunityBanner() {
             .clip(RoundedCornerShape(14.dp))
             .background(AccentEmerald.copy(0.08f))
             .border(1.dp, AccentEmerald.copy(0.25f), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

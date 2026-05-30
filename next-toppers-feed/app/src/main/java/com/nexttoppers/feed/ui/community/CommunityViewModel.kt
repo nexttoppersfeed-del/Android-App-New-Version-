@@ -6,6 +6,7 @@ import com.nexttoppers.feed.data.model.CommunityPost
 import com.nexttoppers.feed.data.model.PostType
 import com.nexttoppers.feed.data.repository.AuthRepository
 import com.nexttoppers.feed.data.repository.CommunityRepository
+import com.nexttoppers.feed.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +23,8 @@ sealed class CommunityUiState {
 @HiltViewModel
 class CommunityViewModel @Inject constructor(
     private val communityRepository: CommunityRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<CommunityUiState>(CommunityUiState.Loading)
@@ -33,6 +35,12 @@ class CommunityViewModel @Inject constructor(
 
     private val _likeAnimations = MutableStateFlow<Set<String>>(emptySet())
     val likeAnimations: StateFlow<Set<String>> = _likeAnimations
+
+    private val _messageInput = MutableStateFlow("")
+    val messageInput: StateFlow<String> = _messageInput
+
+    private val _isSending = MutableStateFlow(false)
+    val isSending: StateFlow<Boolean> = _isSending
 
     val currentUid: String get() = authRepository.currentUser?.uid ?: ""
 
@@ -57,6 +65,34 @@ class CommunityViewModel @Inject constructor(
         _selectedFilter.value = type?.name
         _uiState.value = CommunityUiState.Loading
         observePosts()
+    }
+
+    fun setMessageInput(text: String) {
+        _messageInput.value = text
+    }
+
+    fun sendQuickMessage() {
+        val text = _messageInput.value.trim()
+        val uid = currentUid
+        if (text.isBlank() || uid.isEmpty() || _isSending.value) return
+        _isSending.value = true
+        _messageInput.value = ""
+        viewModelScope.launch {
+            try {
+                val user = userRepository.getUser(uid).getOrNull()
+                val post = CommunityPost(
+                    userId    = uid,
+                    username  = user?.name?.ifBlank { "Student" } ?: "Student",
+                    userPhoto = user?.photoUrl ?: "",
+                    type      = PostType.DISCUSSION.name,
+                    title     = "",
+                    content   = text
+                )
+                communityRepository.createPost(post)
+            } finally {
+                _isSending.value = false
+            }
+        }
     }
 
     fun toggleLike(post: CommunityPost) {

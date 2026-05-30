@@ -114,7 +114,7 @@ class ChatRepository @Inject constructor(
 
     // ── Messages ─────────────────────────────────────────────────────────────────
 
-    fun observeMessages(chatId: String, limit: Long = 50): Flow<Result<List<ChatMessage>>> =
+    fun observeMessages(chatId: String, limit: Long = 200): Flow<Result<List<ChatMessage>>> =
         callbackFlow {
             val query = privateChatsCol.document(chatId)
                 .collection("messages")

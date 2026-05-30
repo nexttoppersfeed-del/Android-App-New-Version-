@@ -20,7 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,10 +74,13 @@ import com.nexttoppers.feed.ui.theme.TextMuted
 import com.nexttoppers.feed.ui.theme.TextPrimary
 import com.nexttoppers.feed.ui.theme.TextSecondary
 import com.nexttoppers.feed.util.LevelUtils
+import kotlinx.coroutines.launch
 
 @Composable
 fun LeaderboardScreen(viewModel: LeaderboardViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -83,12 +89,28 @@ fun LeaderboardScreen(viewModel: LeaderboardViewModel = hiltViewModel()) {
 
     val tabLabels = LeaderboardTab.values().map { it.name.lowercase().replaceFirstChar { c -> c.uppercaseChar() } }
 
+    // Calculate the LazyColumn index of the user's row so we can scroll to it.
+    // Layout order: header(0), rankStrip(1 if shown), tabs(2), loading/entries...
+    // Entries start after: header + rankStrip + tabs + searchBar + podium (if shown) + listHeader
+    // We do a best-effort calculation.
+    val userScrollIndex = remember(state.entries, state.currentUid, state.userRank) {
+        if (state.userRank <= 0 || state.entries.isEmpty()) return@remember -1
+        val hasRankStrip = state.userRank > 0
+        val hasPodium = state.entries.size >= 3 && searchQuery.isBlank()
+        // Fixed header items: header(1) + rankStrip(1?) + tabs(1) + searchBar(1) + podium(1?) + listHeader(1)
+        val fixedCount = 1 + (if (hasRankStrip) 1 else 0) + 1 + 1 + (if (hasPodium) 1 else 0) + 1
+        val listEntries = if (searchQuery.isBlank()) filteredEntries.drop(3) else filteredEntries
+        val idxInList = listEntries.indexOfFirst { it.uid == state.currentUid }
+        if (idxInList < 0) -1 else fixedCount + idxInList
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundBlack)
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
@@ -100,7 +122,16 @@ fun LeaderboardScreen(viewModel: LeaderboardViewModel = hiltViewModel()) {
             // ── Your ranking strip ─────────────────────────────────────────────
             if (state.userRank > 0) {
                 item {
-                    YourRankStrip(rank = state.userRank, entries = state.entries, currentUid = state.currentUid)
+                    YourRankStrip(
+                        rank       = state.userRank,
+                        entries    = state.entries,
+                        currentUid = state.currentUid,
+                        onJumpToRank = {
+                            if (userScrollIndex >= 0) {
+                                scope.launch { listState.animateScrollToItem(userScrollIndex) }
+                            }
+                        }
+                    )
                 }
             }
 
@@ -303,7 +334,12 @@ private fun LeaderboardStat(value: String, label: String, icon: String) {
 }
 
 @Composable
-private fun YourRankStrip(rank: Int, entries: List<LeaderboardEntry>, currentUid: String) {
+private fun YourRankStrip(
+    rank: Int,
+    entries: List<LeaderboardEntry>,
+    currentUid: String,
+    onJumpToRank: () -> Unit = {}
+) {
     val myXp = entries.firstOrNull { it.uid == currentUid }?.xp ?: 0L
     Row(
         modifier = Modifier
@@ -345,6 +381,7 @@ private fun YourRankStrip(rank: Int, entries: List<LeaderboardEntry>, currentUid
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(AccentCyan.copy(0.12f))
+                .clickable(onClick = onJumpToRank)
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

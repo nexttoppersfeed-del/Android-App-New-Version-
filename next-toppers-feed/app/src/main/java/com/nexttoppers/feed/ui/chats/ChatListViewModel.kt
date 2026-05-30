@@ -33,6 +33,9 @@ class ChatListViewModel @Inject constructor(
 
     private val _allChats = MutableStateFlow<List<Chat>>(emptyList())
 
+    private val _pendingNavigation = MutableStateFlow<String?>(null)
+    val pendingNavigation: StateFlow<String?> = _pendingNavigation
+
     val currentUid: String get() = authRepository.currentUser?.uid ?: ""
 
     init {
@@ -68,11 +71,11 @@ class ChatListViewModel @Inject constructor(
             }
             if (missingUids.isEmpty()) return@map chat
 
-            val fetchedNames = mutableMapOf<String, String>()
+            val fetchedNames  = mutableMapOf<String, String>()
             val fetchedPhotos = mutableMapOf<String, String>()
             for (uid in missingUids) {
                 userRepository.getUser(uid).onSuccess { user ->
-                    fetchedNames[uid] = user.name
+                    fetchedNames[uid]  = user.name
                     fetchedPhotos[uid] = user.photoUrl
                 }
             }
@@ -108,5 +111,27 @@ class ChatListViewModel @Inject constructor(
     fun getTotalUnread(): Int {
         val uid = currentUid
         return _allChats.value.sumOf { it.getUnreadCount(uid) }
+    }
+
+    fun openDm(otherUid: String) {
+        val myUid = currentUid
+        if (myUid.isEmpty() || otherUid.isEmpty() || otherUid == myUid) return
+        viewModelScope.launch {
+            val myUser    = userRepository.getUser(myUid).getOrNull() ?: return@launch
+            val otherUser = userRepository.getUser(otherUid).getOrNull() ?: return@launch
+            val chatId = chatRepository.getOrCreatePrivateChat(
+                myUid    = myUid,
+                myName   = myUser.name,
+                myPhoto  = myUser.photoUrl,
+                otherUid   = otherUid,
+                otherName  = otherUser.name,
+                otherPhoto = otherUser.photoUrl
+            ).getOrNull() ?: return@launch
+            _pendingNavigation.value = chatId
+        }
+    }
+
+    fun consumeNavigation() {
+        _pendingNavigation.value = null
     }
 }

@@ -28,8 +28,11 @@ import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -38,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,12 +64,24 @@ import java.util.Locale
 
 @Composable
 fun CommunityScreen(
-    onNavigateToCreatePost: () -> Unit,
-    onNavigateToPostDetail: (String) -> Unit,
+    onNavigateToCreatePost: () -> Unit = {},
+    onNavigateToPostDetail: (String) -> Unit = {},
+    onOpenDmWith: (userId: String) -> Unit = {},
     viewModel: CommunityViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val currentUid = viewModel.currentUid
+    val uiState      by viewModel.uiState.collectAsState()
+    val messageInput by viewModel.messageInput.collectAsState()
+    val isSending    by viewModel.isSending.collectAsState()
+    val currentUid   = viewModel.currentUid
+    val listState    = rememberLazyListState()
+
+    // Auto-scroll to bottom when new messages arrive
+    val posts = (uiState as? CommunityUiState.Success)?.posts ?: emptyList()
+    LaunchedEffect(posts.size) {
+        if (posts.isNotEmpty()) {
+            listState.animateScrollToItem(posts.size - 1)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -73,10 +89,8 @@ fun CommunityScreen(
             .background(BackgroundBlack)
             .imePadding()
     ) {
-        // ── Header ────────────────────────────────────────────────────────────
         CommunityHeader()
 
-        // ── Content ───────────────────────────────────────────────────────────
         Box(modifier = Modifier.weight(1f)) {
             when (val state = uiState) {
                 is CommunityUiState.Loading -> {
@@ -93,7 +107,6 @@ fun CommunityScreen(
                     if (state.posts.isEmpty()) {
                         EmptyCommunity(onPostClick = onNavigateToCreatePost)
                     } else {
-                        val listState = rememberLazyListState()
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
@@ -103,9 +116,10 @@ fun CommunityScreen(
                             items(state.posts, key = { it.postId }) { post ->
                                 val isOwn = post.userId == currentUid
                                 ChatBubble(
-                                    post       = post,
-                                    isOwn      = isOwn,
-                                    onClick    = { onNavigateToPostDetail(post.postId) }
+                                    post        = post,
+                                    isOwn       = isOwn,
+                                    onClick     = { onNavigateToPostDetail(post.postId) },
+                                    onAvatarClick = { if (!isOwn) onOpenDmWith(post.userId) }
                                 )
                             }
                         }
@@ -114,8 +128,13 @@ fun CommunityScreen(
             }
         }
 
-        // ── Message input bar ─────────────────────────────────────────────────
-        MessageInputBar(onTap = onNavigateToCreatePost)
+        MessageInputBar(
+            value         = messageInput,
+            onValueChange = viewModel::setMessageInput,
+            onSend        = viewModel::sendQuickMessage,
+            onNewPost     = onNavigateToCreatePost,
+            isSending     = isSending
+        )
     }
 }
 
@@ -156,7 +175,8 @@ private fun CommunityHeader() {
 private fun ChatBubble(
     post: CommunityPost,
     isOwn: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onAvatarClick: () -> Unit = {}
 ) {
     val timeStr = try {
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(post.createdAt.toDate())
@@ -168,13 +188,13 @@ private fun ChatBubble(
             .padding(horizontal = 12.dp, vertical = 3.dp),
         horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start
     ) {
-        // Avatar (others only)
         if (!isOwn) {
             Box(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(CircleShape)
                     .background(AccentCyan.copy(0.2f))
+                    .clickable(onClick = onAvatarClick)
                     .align(Alignment.Bottom),
                 contentAlignment = Alignment.Center
             ) {
@@ -188,9 +208,9 @@ private fun ChatBubble(
                 } else {
                     Text(
                         post.username.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                        fontSize = 13.sp,
+                        fontSize   = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color      = TextPrimary
                     )
                 }
             }
@@ -201,18 +221,16 @@ private fun ChatBubble(
             modifier = Modifier.weight(1f, fill = false),
             horizontalAlignment = if (isOwn) Alignment.End else Alignment.Start
         ) {
-            // Username (others only)
             if (!isOwn) {
                 Text(
                     post.username,
-                    fontSize = 11.sp,
+                    fontSize   = 11.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = AccentCyan,
-                    modifier = Modifier.padding(bottom = 2.dp, start = 4.dp)
+                    color      = AccentCyan,
+                    modifier   = Modifier.padding(bottom = 2.dp, start = 4.dp)
                 )
             }
 
-            // Bubble
             Box(
                 modifier = Modifier
                     .clip(
@@ -231,9 +249,10 @@ private fun ChatBubble(
                         1.dp,
                         if (isOwn) Color.Transparent else SurfaceElevated,
                         RoundedCornerShape(
-                            topStart = if (isOwn) 16.dp else 4.dp,
-                            topEnd = if (isOwn) 4.dp else 16.dp,
-                            bottomStart = 16.dp, bottomEnd = 16.dp
+                            topStart    = if (isOwn) 16.dp else 4.dp,
+                            topEnd      = if (isOwn) 4.dp  else 16.dp,
+                            bottomStart = 16.dp,
+                            bottomEnd   = 16.dp
                         )
                     )
                     .clickable(onClick = onClick)
@@ -241,30 +260,27 @@ private fun ChatBubble(
                     .widthIn(max = 280.dp)
             ) {
                 Column {
-                    // Title (if present)
                     if (post.title.isNotEmpty()) {
                         Text(
                             post.title,
-                            fontSize = 12.sp,
+                            fontSize   = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (isOwn) Color.White else TextPrimary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            color      = if (isOwn) Color.White else TextPrimary,
+                            maxLines   = 2,
+                            overflow   = TextOverflow.Ellipsis
                         )
                         Spacer(Modifier.height(2.dp))
                     }
-                    // Content
                     if (post.content.isNotEmpty()) {
                         Text(
                             post.content,
-                            fontSize = 13.sp,
-                            color = if (isOwn) Color.White.copy(0.95f) else TextPrimary,
+                            fontSize   = 13.sp,
+                            color      = if (isOwn) Color.White.copy(0.95f) else TextPrimary,
                             lineHeight = 18.sp,
-                            maxLines = 8,
-                            overflow = TextOverflow.Ellipsis
+                            maxLines   = 8,
+                            overflow   = TextOverflow.Ellipsis
                         )
                     }
-                    // Time + likes
                     Spacer(Modifier.height(3.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -272,7 +288,11 @@ private fun ChatBubble(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (post.likes.isNotEmpty()) {
-                            Text("👍 ${post.likes.size}", fontSize = 10.sp, color = if (isOwn) Color.White.copy(0.7f) else TextMuted)
+                            Text(
+                                "👍 ${post.likes.size}",
+                                fontSize = 10.sp,
+                                color    = if (isOwn) Color.White.copy(0.7f) else TextMuted
+                            )
                             Spacer(Modifier.width(6.dp))
                         }
                         Text(timeStr, fontSize = 10.sp, color = if (isOwn) Color.White.copy(0.7f) else TextMuted)
@@ -286,39 +306,66 @@ private fun ChatBubble(
 }
 
 @Composable
-private fun MessageInputBar(onTap: () -> Unit) {
+private fun MessageInputBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onNewPost: () -> Unit,
+    isSending: Boolean
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(SurfaceCard)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.Bottom
     ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(44.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(SurfaceElevated)
-                .border(1.dp, SurfaceElevated, RoundedCornerShape(22.dp))
-                .clickable(onClick = onTap)
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Text("Type a message...", color = TextMuted, fontSize = 14.sp)
-        }
-        Spacer(Modifier.width(10.dp))
+        OutlinedTextField(
+            value         = value,
+            onValueChange = onValueChange,
+            placeholder   = {
+                Text("Message community…", color = TextMuted, fontSize = 13.sp)
+            },
+            modifier      = Modifier.weight(1f),
+            textStyle     = TextStyle(color = TextPrimary, fontSize = 14.sp),
+            shape         = RoundedCornerShape(20.dp),
+            colors        = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor   = AccentEmerald.copy(0.5f),
+                unfocusedBorderColor = SurfaceElevated,
+                cursorColor          = AccentEmerald,
+                focusedContainerColor   = SurfaceElevated,
+                unfocusedContainerColor = SurfaceElevated
+            ),
+            maxLines = 4
+        )
+        Spacer(Modifier.width(8.dp))
         Box(
             modifier = Modifier
                 .size(44.dp)
+                .clip(CircleShape)
                 .background(
-                    Brush.linearGradient(listOf(AccentEmerald, AccentCyan)),
-                    CircleShape
+                    if (value.isNotBlank())
+                        Brush.linearGradient(listOf(AccentEmerald, AccentCyan))
+                    else
+                        Brush.linearGradient(listOf(SurfaceElevated, SurfaceElevated))
                 )
-                .clickable(onClick = onTap),
+                .clickable(enabled = value.isNotBlank() && !isSending, onClick = onSend),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Rounded.Send, null, tint = Color.White, modifier = Modifier.size(20.dp))
+            if (isSending) {
+                CircularProgressIndicator(
+                    modifier  = Modifier.size(20.dp),
+                    color     = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    Icons.Rounded.Send,
+                    null,
+                    tint     = if (value.isNotBlank()) Color.White else TextMuted,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -339,7 +386,7 @@ private fun EmptyCommunity(onPostClick: () -> Unit) {
         Text(
             "No messages yet. Be the first to say something!",
             fontSize = 13.sp,
-            color = TextSecondary,
+            color    = TextSecondary,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
         Spacer(Modifier.height(24.dp))
@@ -354,9 +401,13 @@ private fun EmptyCommunity(onPostClick: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Add, null, tint = AccentEmerald, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Start the conversation", color = AccentEmerald, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(
+                    "Start the conversation",
+                    color      = AccentEmerald,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize   = 13.sp
+                )
             }
         }
     }
 }
-

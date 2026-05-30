@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,10 +31,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -45,8 +48,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -70,6 +75,7 @@ import com.nexttoppers.feed.ui.theme.SurfaceElevated
 import com.nexttoppers.feed.ui.theme.TextMuted
 import com.nexttoppers.feed.ui.theme.TextPrimary
 import com.nexttoppers.feed.ui.theme.TextSecondary
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -82,19 +88,29 @@ fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel()
 ) {
 
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState      by viewModel.uiState.collectAsState()
     val messageInput by viewModel.messageInput.collectAsState()
-    val isSending by viewModel.isSending.collectAsState()
+    val isSending    by viewModel.isSending.collectAsState()
 
     val listState = rememberLazyListState()
+    val scope     = rememberCoroutineScope()
 
     val messages = when (val state = uiState) {
         is ChatUiState.Success -> state.messages
         else -> emptyList()
     }
 
+    val isAtBottom by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            lastVisible >= info.totalItemsCount - 2
+        }
+    }
+
+    // Auto-scroll to bottom when new messages arrive and user is already at the bottom
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
+        if (messages.isNotEmpty() && (isAtBottom || messages.size <= 2)) {
             listState.animateScrollToItem(messages.size - 1)
         }
     }
@@ -175,91 +191,80 @@ fun ChatScreen(
         }
     ) { paddingValues ->
 
-        when (uiState) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            when (uiState) {
 
-            is ChatUiState.Loading -> {
-
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = NeonGreen,
-                        strokeWidth = 2.dp
-                    )
-                }
-            }
-
-            is ChatUiState.Error -> {
-
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = (uiState as ChatUiState.Error).message,
-                        color = TextSecondary
-                    )
-                }
-            }
-
-            is ChatUiState.Success -> {
-
-                if (messages.isEmpty()) {
-
-                    EmptyChatState(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                    )
-
-                } else {
-
-                    val groupedMessages = remember(messages) {
-                        groupMessagesByDate(messages)
-                    }
-
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-
-                        contentPadding = PaddingValues(vertical = 12.dp),
-
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                is ChatUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
+                        CircularProgressIndicator(color = NeonGreen, strokeWidth = 2.dp)
+                    }
+                }
 
-                        groupedMessages.forEach { (label, msgs) ->
+                is ChatUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = (uiState as ChatUiState.Error).message, color = TextSecondary)
+                    }
+                }
 
-                            item(
-                                key = "date_$label"
-                            ) {
-                                DateSeparator(label = label)
-                            }
+                is ChatUiState.Success -> {
+                    if (messages.isEmpty()) {
+                        EmptyChatState(modifier = Modifier.fillMaxSize())
+                    } else {
+                        val groupedMessages = remember(messages) { groupMessagesByDate(messages) }
 
-                            items(
-                                items = msgs,
-                                key = { it.messageId }
-                            ) { message ->
-
-                                AnimatedVisibility(
-                                    visible = true,
-                                    enter =
-                                    fadeIn(tween(220)) +
-                                            slideInVertically(
-                                                tween(220)
-                                            ) { it / 2 }
-                                ) {
-
-                                    MessageBubble(
-                                        message = message,
-                                        isOwn = message.senderId == viewModel.currentUid
-                                    )
+                        LazyColumn(
+                            state           = listState,
+                            modifier        = Modifier.fillMaxSize(),
+                            contentPadding  = PaddingValues(vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            groupedMessages.forEach { (label, msgs) ->
+                                item(key = "date_$label") {
+                                    DateSeparator(label = label)
+                                }
+                                items(items = msgs, key = { it.messageId }) { message ->
+                                    AnimatedVisibility(
+                                        visible = true,
+                                        enter   = fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 2 }
+                                    ) {
+                                        MessageBubble(
+                                            message = message,
+                                            isOwn   = message.senderId == viewModel.currentUid
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
+                }
+            }
+
+            // Scroll-to-bottom FAB
+            AnimatedVisibility(
+                visible = !isAtBottom && messages.isNotEmpty(),
+                enter   = fadeIn(tween(200)),
+                exit    = fadeOut(tween(200)),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 8.dp)
+            ) {
+                FloatingActionButton(
+                    onClick           = { scope.launch { listState.animateScrollToItem(messages.size - 1) } },
+                    modifier          = Modifier.size(40.dp),
+                    containerColor    = NeonGreen,
+                    contentColor      = BackgroundBlack
+                ) {
+                    Icon(
+                        Icons.Rounded.ArrowDownward,
+                        contentDescription = "Scroll to bottom",
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
