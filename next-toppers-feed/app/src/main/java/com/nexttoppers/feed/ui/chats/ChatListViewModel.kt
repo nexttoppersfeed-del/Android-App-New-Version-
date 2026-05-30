@@ -31,7 +31,10 @@ class ChatListViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
-    private val _allChats = MutableStateFlow<List<Chat>>(emptyList())
+    private val _allChats    = MutableStateFlow<List<Chat>>(emptyList())
+
+    private val _totalUnread = MutableStateFlow(0)
+    val totalUnread: StateFlow<Int> = _totalUnread
 
     private val _pendingNavigation = MutableStateFlow<String?>(null)
     val pendingNavigation: StateFlow<String?> = _pendingNavigation
@@ -98,9 +101,11 @@ class ChatListViewModel @Inject constructor(
     }
 
     private fun applySearch(query: String, chats: List<Chat>) {
+        val uid      = currentUid
+        _totalUnread.value = chats.sumOf { it.getUnreadCount(uid) }
         val filtered = if (query.isBlank()) chats
         else chats.filter { chat ->
-            chat.getDisplayName(currentUid).contains(query, ignoreCase = true) ||
+            chat.getDisplayName(uid).contains(query, ignoreCase = true) ||
                     chat.lastMessage.contains(query, ignoreCase = true)
         }
         _uiState.value = ChatListUiState.Success(filtered)

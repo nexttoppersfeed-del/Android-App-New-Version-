@@ -1,6 +1,8 @@
 package com.nexttoppers.feed.ui.pdf
 
+import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -30,8 +32,10 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.ZoomIn
 import androidx.compose.material.icons.rounded.ZoomOut
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -94,6 +98,7 @@ fun PdfViewerScreen(
                     pageCount   = s.pageCount,
                     currentPage = currentPage,
                     title       = viewModel.resourceTitle,
+                    fileUrl     = viewModel.fileUrl,
                     onPageChange = viewModel::onPageChanged,
                     renderPage  = viewModel::renderPage,
                     onBack      = onBack
@@ -109,12 +114,14 @@ private fun PdfPager(
     pageCount: Int,
     currentPage: Int,
     title: String,
+    fileUrl: String = "",
     onPageChange: (Int) -> Unit,
     renderPage: suspend (Int, Int) -> Bitmap?,
     onBack: () -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { pageCount })
     val scope      = rememberCoroutineScope()
+    val context    = LocalContext.current
 
     // Keep ViewModel in sync
     LaunchedEffect(pagerState.currentPage) { onPageChange(pagerState.currentPage) }
@@ -179,6 +186,27 @@ private fun PdfPager(
                         maxLines   = 1,
                         modifier   = Modifier.weight(1f)
                     )
+                    if (fileUrl.isNotBlank()) {
+                        IconButton(onClick = {
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fileUrl)))
+                            }
+                        }) {
+                            Box(
+                                Modifier
+                                    .size(36.dp)
+                                    .background(SurfaceElevated.copy(0.9f), RoundedCornerShape(50.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Rounded.OpenInBrowser,
+                                    contentDescription = "Open Original",
+                                    tint     = NeonGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

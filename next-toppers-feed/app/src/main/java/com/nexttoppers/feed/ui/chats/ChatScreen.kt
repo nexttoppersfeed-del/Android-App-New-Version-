@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nexttoppers.feed.data.model.ChatMessage
+import coil.compose.AsyncImage
 import com.nexttoppers.feed.data.model.MessageType
 import com.nexttoppers.feed.ui.theme.BackgroundBlack
 import com.nexttoppers.feed.ui.theme.NeonCyan
@@ -124,26 +125,32 @@ fun ChatScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
 
-                        val name = viewModel.getDisplayName()
+                        val name     = viewModel.getDisplayName()
+                        val photoUrl = viewModel.getDisplayPhoto()
 
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
                                 .background(NeonGreen.copy(alpha = 0.15f))
-                                .border(
-                                    1.5.dp,
-                                    NeonGreen.copy(alpha = 0.4f),
-                                    CircleShape
-                                ),
+                                .border(1.5.dp, NeonGreen.copy(alpha = 0.4f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                                color = NeonGreen,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
+                            if (photoUrl.isNotBlank()) {
+                                AsyncImage(
+                                    model              = photoUrl,
+                                    contentDescription = null,
+                                    contentScale       = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier           = Modifier.fillMaxSize().clip(CircleShape)
+                                )
+                            } else {
+                                Text(
+                                    text       = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                                    color      = NeonGreen,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize   = 14.sp
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(10.dp))
@@ -216,7 +223,8 @@ fun ChatScreen(
                     if (messages.isEmpty()) {
                         EmptyChatState(modifier = Modifier.fillMaxSize())
                     } else {
-                        val groupedMessages = remember(messages) { groupMessagesByDate(messages) }
+                        val groupedMessages  = remember(messages) { groupMessagesByDate(messages) }
+                        val participantPhotos = (uiState as ChatUiState.Success).chat.participantPhotos
 
                         LazyColumn(
                             state           = listState,
@@ -234,8 +242,9 @@ fun ChatScreen(
                                         enter   = fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 2 }
                                     ) {
                                         MessageBubble(
-                                            message = message,
-                                            isOwn   = message.senderId == viewModel.currentUid
+                                            message        = message,
+                                            isOwn          = message.senderId == viewModel.currentUid,
+                                            senderPhotoUrl = participantPhotos[message.senderId] ?: ""
                                         )
                                     }
                                 }
@@ -274,7 +283,8 @@ fun ChatScreen(
 @Composable
 private fun MessageBubble(
     message: ChatMessage,
-    isOwn: Boolean
+    isOwn: Boolean,
+    senderPhotoUrl: String = ""
 ) {
 
     if (message.deleted) {
@@ -353,25 +363,24 @@ private fun MessageBubble(
                     .align(Alignment.Bottom)
                     .clip(CircleShape)
                     .background(NeonGreen.copy(alpha = 0.15f))
-                    .border(
-                        1.dp,
-                        NeonGreen.copy(alpha = 0.3f),
-                        CircleShape
-                    ),
-
+                    .border(1.dp, NeonGreen.copy(alpha = 0.3f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-
-                Text(
-                    text = message.senderName
-                        .firstOrNull()
-                        ?.uppercaseChar()
-                        ?.toString() ?: "?",
-
-                    color = NeonGreen,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (senderPhotoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model              = senderPhotoUrl,
+                        contentDescription = null,
+                        contentScale       = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier           = Modifier.fillMaxSize().clip(CircleShape)
+                    )
+                } else {
+                    Text(
+                        text       = message.senderName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                        color      = NeonGreen,
+                        fontSize   = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(6.dp))

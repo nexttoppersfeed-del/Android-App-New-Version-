@@ -30,8 +30,9 @@ class PdfViewerViewModel @Inject constructor(
 ) : ViewModel() {
 
     val resourceId: String    = savedStateHandle["resourceId"] ?: ""
-    val resourceTitle: String = java.net.URLDecoder.decode(savedStateHandle["title"] ?: "Document", "UTF-8")
-    val localPath: String     = java.net.URLDecoder.decode(savedStateHandle["localPath"] ?: "", "UTF-8")
+    val resourceTitle: String = java.net.URLDecoder.decode(savedStateHandle["title"]     ?: "Document", "UTF-8")
+    val localPath: String     = java.net.URLDecoder.decode(savedStateHandle["localPath"] ?: "",         "UTF-8")
+    val fileUrl: String       = java.net.URLDecoder.decode(savedStateHandle["fileUrl"]   ?: "",         "UTF-8")
 
     private val _state = MutableStateFlow<PdfViewerState>(PdfViewerState.Loading)
     val state: StateFlow<PdfViewerState> = _state

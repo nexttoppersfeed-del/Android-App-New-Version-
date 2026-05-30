@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.Download
@@ -142,7 +143,7 @@ object Routes {
     const val RESOURCE_DETAIL   = "resources/detail/{resourceId}"
 
     const val PDF_VIEWER =
-        "pdf_viewer?resourceId={resourceId}&title={title}&localPath={localPath}"
+        "pdf_viewer?resourceId={resourceId}&title={title}&localPath={localPath}&fileUrl={fileUrl}"
 
     const val QUIZ_HOME   = "quiz_home"
     const val QUIZ_PLAYER = "quiz_player/{quizId}"
@@ -175,11 +176,13 @@ object Routes {
     fun pdfViewer(
         resourceId: String,
         title: String,
-        localPath: String
+        localPath: String,
+        fileUrl: String = ""
     ): String {
-        val encodedTitle = URLEncoder.encode(title,     "UTF-8")
-        val encodedPath  = URLEncoder.encode(localPath, "UTF-8")
-        return "pdf_viewer?resourceId=$resourceId&title=$encodedTitle&localPath=$encodedPath"
+        val encodedTitle   = URLEncoder.encode(title,     "UTF-8")
+        val encodedPath    = URLEncoder.encode(localPath, "UTF-8")
+        val encodedFileUrl = URLEncoder.encode(fileUrl,   "UTF-8")
+        return "pdf_viewer?resourceId=$resourceId&title=$encodedTitle&localPath=$encodedPath&fileUrl=$encodedFileUrl"
     }
 }
 
@@ -268,6 +271,9 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
     val currentRoute  = navBackStack?.destination?.route
     val showBottomBar = bottomNavRoutes.contains(currentRoute)
 
+    val chatListVm: ChatListViewModel = hiltViewModel()
+    val totalUnread  by chatListVm.totalUnread.collectAsState()
+
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope       = rememberCoroutineScope()
 
@@ -307,7 +313,17 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                                 }
                             },
                             icon = {
-                                Icon(imageVector = item.icon, contentDescription = item.label)
+                                if (item.route == Routes.CHATS && totalUnread > 0) {
+                                    BadgedBox(badge = {
+                                        Badge {
+                                            Text(if (totalUnread > 9) "9+" else totalUnread.toString())
+                                        }
+                                    }) {
+                                        Icon(imageVector = item.icon, contentDescription = item.label)
+                                    }
+                                } else {
+                                    Icon(imageVector = item.icon, contentDescription = item.label)
+                                }
                             },
                             label = {
                                 Text(text = item.label, fontSize = 10.sp)
@@ -530,8 +546,8 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
             ) {
                 ResourceDetailScreen(
                     onBack      = { navController.popBackStack() },
-                    onOpenPdf   = { localPath, resourceId, title ->
-                        navController.navigateSafe(Routes.pdfViewer(resourceId, title, localPath))
+                    onOpenPdf   = { localPath, resourceId, title, fileUrl ->
+                        navController.navigateSafe(Routes.pdfViewer(resourceId, title, localPath, fileUrl))
                     },
                     onPlayLecture = { url, title ->
                         navController.navigateSafe(Routes.lecturePlayer(url, title))
@@ -545,7 +561,8 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                 arguments = listOf(
                     navArgument("resourceId") { type = NavType.StringType; defaultValue = "" },
                     navArgument("title")      { type = NavType.StringType; defaultValue = "" },
-                    navArgument("localPath")  { type = NavType.StringType; defaultValue = "" }
+                    navArgument("localPath")  { type = NavType.StringType; defaultValue = "" },
+                    navArgument("fileUrl")    { type = NavType.StringType; defaultValue = "" }
                 )
             ) {
                 PdfViewerScreen(onBack = { navController.popBackStack() })
@@ -683,9 +700,10 @@ private fun NtfNavDrawer(
         Spacer(Modifier.height(4.dp))
 
         DrawerSection(title = "Support")
-        DrawerItem(Icons.Rounded.Settings,  "Settings",      onNavigate, Routes.SETTINGS)
-        DrawerItem(Icons.Rounded.Feedback,  "Send Feedback", onNavigate, Routes.FEEDBACK)
-        DrawerItem(Icons.Rounded.Info,      "About",         onNavigate, Routes.ABOUT)
+        DrawerItem(Icons.Rounded.Settings,         "Settings",      onNavigate, Routes.SETTINGS)
+        DrawerItem(Icons.Rounded.Feedback,         "Send Feedback", onNavigate, Routes.FEEDBACK)
+        DrawerItem(Icons.Rounded.Info,             "About",         onNavigate, Routes.ABOUT)
+        DrawerItem(Icons.Rounded.AdminPanelSettings, "Admin Panel", onNavigate, Routes.ADMIN)
 
         Spacer(Modifier.weight(1f))
         HorizontalDivider(color = AccentCyan.copy(0.08f), modifier = Modifier.padding(horizontal = 16.dp))

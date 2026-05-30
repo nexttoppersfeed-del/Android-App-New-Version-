@@ -87,7 +87,7 @@ import java.util.Locale
 @Composable
 fun ResourceDetailScreen(
     onBack: () -> Unit,
-    onOpenPdf: (localPath: String, resourceId: String, title: String) -> Unit,
+    onOpenPdf: (localPath: String, resourceId: String, title: String, fileUrl: String) -> Unit,
     onPlayLecture: (url: String, title: String) -> Unit,
     viewModel: ResourceDetailViewModel = hiltViewModel()
 ) {
@@ -141,7 +141,7 @@ fun ResourceDetailScreen(
                         localPath      = localPath,
                         isDownloaded   = isDownloaded,
                         onStartDownload = viewModel::startDownload,
-                        onOpenPdf      = { path -> onOpenPdf(path, state.resource.id, state.resource.title) },
+                        onOpenPdf      = { path -> onOpenPdf(path, state.resource.id, state.resource.title, state.resource.fileUrl) },
                         onPlayLecture  = { onPlayLecture(state.resource.fileUrl, state.resource.title) }
                     )
                 }
