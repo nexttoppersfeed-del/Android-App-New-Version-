@@ -179,6 +179,7 @@ fun CommunityScreen(
         )
     }
 }
+}
 
 @Composable
 private fun CommunityHeader() {
