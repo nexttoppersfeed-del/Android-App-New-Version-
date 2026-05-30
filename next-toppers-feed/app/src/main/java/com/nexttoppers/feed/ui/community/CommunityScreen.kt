@@ -1,5 +1,9 @@
 package com.nexttoppers.feed.ui.community
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,9 +28,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -34,7 +40,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,11 +83,21 @@ fun CommunityScreen(
     val isSending    by viewModel.isSending.collectAsState()
     val currentUid   = viewModel.currentUid
     val listState    = rememberLazyListState()
+    val scope        = rememberCoroutineScope()
 
-    // Auto-scroll to bottom when new messages arrive
     val posts = (uiState as? CommunityUiState.Success)?.posts ?: emptyList()
+
+    // Only auto-scroll when user is already at bottom (don't hijack scroll position)
+    val isAtBottom by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            lastVisible >= (layoutInfo.totalItemsCount - 1)
+        }
+    }
+
     LaunchedEffect(posts.size) {
-        if (posts.isNotEmpty()) {
+        if (posts.isNotEmpty() && isAtBottom) {
             listState.animateScrollToItem(posts.size - 1)
         }
     }
@@ -124,6 +143,33 @@ fun CommunityScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // Scroll-to-bottom FAB (visible when not at bottom)
+            AnimatedVisibility(
+                visible = !isAtBottom && posts.isNotEmpty(),
+                enter   = fadeIn(tween(200)),
+                exit    = fadeOut(tween(200)),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 12.dp)
+            ) {
+                FloatingActionButton(
+                    onClick          = {
+                        scope.launch {
+                            listState.animateScrollToItem(posts.size - 1)
+                        }
+                    },
+                    modifier         = Modifier.size(40.dp),
+                    containerColor   = NeonGreen,
+                    contentColor     = BackgroundBlack,
+                    shape            = CircleShape
+                ) {
+                    Icon(
+                        Icons.Rounded.ArrowDownward, null,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }

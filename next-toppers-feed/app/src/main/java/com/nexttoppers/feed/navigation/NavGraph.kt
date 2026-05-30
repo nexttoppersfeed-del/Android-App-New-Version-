@@ -3,28 +3,62 @@ package com.nexttoppers.feed.navigation
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Feedback
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LibraryBooks
+import androidx.compose.material.icons.rounded.Logout
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,11 +101,17 @@ import com.nexttoppers.feed.ui.resources.SubjectResourcesScreen
 import com.nexttoppers.feed.ui.settings.SettingsScreen
 import com.nexttoppers.feed.ui.splash.SplashScreen
 import com.nexttoppers.feed.ui.tests.TestsScreen
+import com.nexttoppers.feed.ui.theme.AccentCyan
+import com.nexttoppers.feed.ui.theme.AccentEmerald
 import com.nexttoppers.feed.ui.theme.BackgroundBlack
 import com.nexttoppers.feed.ui.theme.NeonGreen
+import com.nexttoppers.feed.ui.theme.SurfaceCard
 import com.nexttoppers.feed.ui.theme.SurfaceDark
 import com.nexttoppers.feed.ui.theme.TextMuted
+import com.nexttoppers.feed.ui.theme.TextPrimary
+import com.nexttoppers.feed.ui.theme.TextSecondary
 import com.nexttoppers.feed.util.AppLogger
+import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -223,11 +263,30 @@ fun NtfNavGraph() {
 @Composable
 private fun MainAppShell(onSignedOut: () -> Unit) {
 
-    val navController    = rememberNavController()
-    val navBackStack     by navController.currentBackStackEntryAsState()
-    val currentRoute     = navBackStack?.destination?.route
-    val showBottomBar    = bottomNavRoutes.contains(currentRoute)
+    val navController = rememberNavController()
+    val navBackStack  by navController.currentBackStackEntryAsState()
+    val currentRoute  = navBackStack?.destination?.route
+    val showBottomBar = bottomNavRoutes.contains(currentRoute)
 
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope       = rememberCoroutineScope()
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = drawerState.isOpen || showBottomBar,
+        drawerContent = {
+            NtfNavDrawer(
+                onNavigate = { route ->
+                    scope.launch { drawerState.close() }
+                    navController.navigateSafe(route)
+                },
+                onSignOut = {
+                    scope.launch { drawerState.close() }
+                    onSignedOut()
+                }
+            )
+        }
+    ) {
     Scaffold(
         containerColor = BackgroundBlack,
         bottomBar = {
@@ -289,7 +348,11 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                     onNavigateToAnnouncementDetail = { id ->
                         navController.navigateSafe(Routes.announcementDetail(id))
                     },
-                    onNavigateToActivityFeed = { navController.navigateSafe(Routes.ACTIVITY_FEED) }
+                    onNavigateToActivityFeed = { navController.navigateSafe(Routes.ACTIVITY_FEED) },
+                    onNavigateToSubject = { subject ->
+                        navController.navigateSafe(Routes.subjectResources(subject))
+                    },
+                    onOpenDrawer = { scope.launch { drawerState.open() } }
                 )
             }
 
@@ -553,5 +616,124 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                 TestsScreen(onBack = { navController.popBackStack() })
             }
         }
+    }
+    } // ModalNavigationDrawer
+}
+
+// ── NtfNavDrawer ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun NtfNavDrawer(
+    onNavigate: (String) -> Unit,
+    onSignOut: () -> Unit
+) {
+    ModalDrawerSheet(
+        drawerContainerColor = SurfaceCard,
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(300.dp)
+    ) {
+        // Header
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(AccentCyan.copy(0.12f), Color.Transparent)))
+                .padding(horizontal = 24.dp, vertical = 28.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(Brush.linearGradient(listOf(AccentCyan, AccentEmerald)), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("NT", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("Next Toppers", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = TextPrimary)
+                    Text("Feed", fontSize = 12.sp, color = AccentCyan)
+                }
+            }
+        }
+
+        HorizontalDivider(color = AccentCyan.copy(0.12f))
+        Spacer(Modifier.height(8.dp))
+
+        // Main navigation items
+        DrawerSection(title = "Main")
+        DrawerItem(Icons.Rounded.Home,          "Home",          onNavigate, Routes.HOME)
+        DrawerItem(Icons.Rounded.AutoStories,   "Study Resources", onNavigate, Routes.RESOURCES)
+        DrawerItem(Icons.Rounded.Quiz,          "Tests & Quizzes", onNavigate, Routes.QUIZ_HOME)
+        DrawerItem(Icons.Rounded.Chat,          "Community",     onNavigate, Routes.CHATS)
+        DrawerItem(Icons.Rounded.EmojiEvents,   "Leaderboard",   onNavigate, Routes.LEADERBOARD)
+
+        Spacer(Modifier.height(4.dp))
+        HorizontalDivider(color = AccentCyan.copy(0.08f), modifier = Modifier.padding(horizontal = 16.dp))
+        Spacer(Modifier.height(4.dp))
+
+        DrawerSection(title = "Account")
+        DrawerItem(Icons.Rounded.Person,        "Profile",       onNavigate, Routes.PROFILE)
+        DrawerItem(Icons.Rounded.Notifications, "Notifications", onNavigate, Routes.NOTIFICATIONS)
+        DrawerItem(Icons.Rounded.WorkspacePremium, "Premium",    onNavigate, Routes.PREMIUM)
+        DrawerItem(Icons.Rounded.Download,      "Downloads",     onNavigate, Routes.DOWNLOADS)
+
+        Spacer(Modifier.height(4.dp))
+        HorizontalDivider(color = AccentCyan.copy(0.08f), modifier = Modifier.padding(horizontal = 16.dp))
+        Spacer(Modifier.height(4.dp))
+
+        DrawerSection(title = "Support")
+        DrawerItem(Icons.Rounded.Settings,  "Settings",      onNavigate, Routes.SETTINGS)
+        DrawerItem(Icons.Rounded.Feedback,  "Send Feedback", onNavigate, Routes.FEEDBACK)
+        DrawerItem(Icons.Rounded.Info,      "About",         onNavigate, Routes.ABOUT)
+
+        Spacer(Modifier.weight(1f))
+        HorizontalDivider(color = AccentCyan.copy(0.08f), modifier = Modifier.padding(horizontal = 16.dp))
+
+        // Sign out
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onSignOut)
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Icon(Icons.Rounded.Logout, null, tint = AccentCyan.copy(0.7f), modifier = Modifier.size(20.dp))
+            Text("Sign Out", color = TextSecondary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+        }
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun DrawerSection(title: String) {
+    Text(
+        text     = title.uppercase(),
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        color    = TextMuted,
+        modifier = Modifier.padding(start = 24.dp, top = 4.dp, bottom = 2.dp)
+    )
+}
+
+@Composable
+private fun DrawerItem(
+    icon: ImageVector,
+    label: String,
+    onNavigate: (String) -> Unit,
+    route: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable { onNavigate(route) }
+            .padding(horizontal = 20.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Icon(icon, null, tint = AccentCyan.copy(0.85f), modifier = Modifier.size(20.dp))
+        Text(label, color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
     }
 }

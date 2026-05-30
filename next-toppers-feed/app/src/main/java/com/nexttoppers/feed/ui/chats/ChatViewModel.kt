@@ -10,6 +10,7 @@ import com.nexttoppers.feed.data.repository.AuthRepository
 import com.nexttoppers.feed.data.repository.ChatRepository
 import com.nexttoppers.feed.data.repository.UserRepository
 import com.google.firebase.Timestamp
+import com.nexttoppers.feed.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,11 +60,41 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.observeChat(chatId).collect { result ->
                 result.onSuccess { chat ->
-                    _currentChat.value = chat
+                    val enriched = enrichParticipantsIfNeeded(chat)
+                    _currentChat.value = enriched
                     updateUiState()
                 }
             }
         }
+    }
+
+    private suspend fun enrichParticipantsIfNeeded(chat: Chat): Chat {
+        val uid = currentUid
+        val missingUids = chat.participants.filter { id ->
+            id != uid && chat.participantNames[id].isNullOrBlank()
+        }
+        if (missingUids.isEmpty()) return chat
+
+        val resolvedNames  = mutableMapOf<String, String>()
+        val resolvedPhotos = mutableMapOf<String, String>()
+
+        for (otherId in missingUids) {
+            userRepository.getUser(otherId)
+                .onSuccess { user ->
+                    if (user.name.isNotBlank()) resolvedNames[otherId]  = user.name
+                    if (user.photoUrl.isNotBlank()) resolvedPhotos[otherId] = user.photoUrl
+                }
+                .onFailure { err ->
+                    AppLogger.warn("ChatViewModel", "Could not resolve user $otherId: ${err.message}")
+                }
+        }
+
+        if (resolvedNames.isEmpty() && resolvedPhotos.isEmpty()) return chat
+
+        return chat.copy(
+            participantNames  = chat.participantNames  + resolvedNames,
+            participantPhotos = chat.participantPhotos + resolvedPhotos
+        )
     }
 
     private fun observeMessages() {

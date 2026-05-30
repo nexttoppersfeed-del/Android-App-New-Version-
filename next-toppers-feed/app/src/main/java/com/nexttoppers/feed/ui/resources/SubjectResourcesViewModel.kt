@@ -39,6 +39,14 @@ class SubjectResourcesViewModel @Inject constructor(
     private val _selectedType = MutableStateFlow<ResourceType?>(null)
     val selectedType: StateFlow<ResourceType?> = _selectedType
 
+    // Folder mode: null = show folder grid, non-null = browsing that folder
+    private val _selectedFolder = MutableStateFlow<ResourceType?>(null)
+    val selectedFolder: StateFlow<ResourceType?> = _selectedFolder
+
+    // Available folders derived from loaded items (types that actually have resources)
+    private val _availableFolders = MutableStateFlow<List<Pair<ResourceType, Int>>>(emptyList())
+    val availableFolders: StateFlow<List<Pair<ResourceType, Int>>> = _availableFolders
+
     private val _premiumFilter = MutableStateFlow<Boolean?>(null)
     val premiumFilter: StateFlow<Boolean?> = _premiumFilter
 
@@ -65,6 +73,7 @@ class SubjectResourcesViewModel @Inject constructor(
                 result
                     .onSuccess { items ->
                         allItems = items
+                        updateAvailableFolders()
                         applyFilters()
                     }
                     .onFailure { err ->
@@ -72,6 +81,40 @@ class SubjectResourcesViewModel @Inject constructor(
                     }
             }
         }
+    }
+
+    private fun updateAvailableFolders() {
+        val grouped = allItems
+            .groupBy { it.type.uppercase() }
+            .mapNotNull { (typeName, items) ->
+                val type = ResourceType.values().firstOrNull { it.name.equals(typeName, ignoreCase = true) }
+                type?.to(items.size)
+            }
+            .sortedBy { (type, _) ->
+                val order = listOf(
+                    ResourceType.LECTURE, ResourceType.DPP, ResourceType.MODULE,
+                    ResourceType.NOTES, ResourceType.ACP, ResourceType.PDF,
+                    ResourceType.PRACTICE
+                )
+                order.indexOf(type).let { if (it < 0) Int.MAX_VALUE else it }
+            }
+        _availableFolders.value = grouped
+    }
+
+    /** Enter a folder — sets type filter and shows the resource list */
+    fun openFolder(type: ResourceType) {
+        _selectedFolder.value = type
+        _selectedType.value   = type
+        applyFilters()
+    }
+
+    /** Go back to folder grid */
+    fun closeFolder() {
+        _selectedFolder.value = null
+        _selectedType.value   = null
+        _premiumFilter.value  = null
+        _sortOrder.value      = SortOrder.LATEST
+        applyFilters()
     }
 
     fun selectType(type: ResourceType?) {

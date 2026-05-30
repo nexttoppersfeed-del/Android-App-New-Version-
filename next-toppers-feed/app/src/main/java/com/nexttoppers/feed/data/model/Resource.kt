@@ -17,7 +17,8 @@ enum class ResourceType(val displayName: String, val emoji: String) {
     MODULE("Module", "📦"),
     DPP("DPP", "📋"),
     LECTURE("Lecture", "🎬"),
-    PRACTICE("Practice", "✏️")
+    PRACTICE("Practice", "✏️"),
+    ACP("ACP", "🧪")
 }
 
 data class Resource(

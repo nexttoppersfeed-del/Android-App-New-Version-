@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Settings
@@ -104,6 +105,8 @@ fun HomeScreen(
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToAnnouncementDetail: (String) -> Unit = {},
     onNavigateToActivityFeed: () -> Unit = {},
+    onNavigateToSubject: (String) -> Unit = {},
+    onOpenDrawer: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState                 by viewModel.uiState.collectAsState()
@@ -142,7 +145,9 @@ fun HomeScreen(
                         onNavigateToSettings           = onNavigateToSettings,
                         onNavigateToNotifications      = onNavigateToNotifications,
                         onNavigateToAnnouncementDetail = onNavigateToAnnouncementDetail,
-                        onNavigateToActivityFeed       = onNavigateToActivityFeed
+                        onNavigateToActivityFeed       = onNavigateToActivityFeed,
+                        onNavigateToSubject            = onNavigateToSubject,
+                        onOpenDrawer                   = onOpenDrawer
                     )
                 }
             }
@@ -183,7 +188,9 @@ private fun HomeContent(
     onNavigateToSettings: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToAnnouncementDetail: (String) -> Unit,
-    onNavigateToActivityFeed: () -> Unit
+    onNavigateToActivityFeed: () -> Unit,
+    onNavigateToSubject: (String) -> Unit = {},
+    onOpenDrawer: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -198,7 +205,8 @@ private fun HomeContent(
             user                    = user,
             unreadNotificationCount = unreadNotificationCount,
             onNotificationClick     = onNavigateToNotifications,
-            onSettingsClick         = onNavigateToSettings
+            onSettingsClick         = onNavigateToSettings,
+            onOpenDrawer            = onOpenDrawer
         )
 
         // ── Greeting ─────────────────────────────────────────────────────────
@@ -209,31 +217,12 @@ private fun HomeContent(
             onAnnouncementClick = onNavigateToAnnouncementDetail
         )
 
-        // ── Hero stats card ───────────────────────────────────────────────────
-        HeroStatsCard(user = user, rank = userRank)
+        // ── Subjects quick access (primary focus) ─────────────────────────────
+        SectionHeader("Subjects")
+        SubjectsGrid(onNavigateToSubject = onNavigateToSubject)
 
-        // ── XP Level progress ─────────────────────────────────────────────────
-        GlowingLevelCard(xp = user.xp, modifier = Modifier.fillMaxWidth())
-
-        // ── Streak + Rank row ─────────────────────────────────────────────────
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            StreakCard(streak = user.streak, modifier = Modifier.weight(1f))
-            RankCard(rank = userRank, xp = user.xp, modifier = Modifier.weight(1f))
-        }
-
-        // ── Premium banner ────────────────────────────────────────────────────
-        PremiumBannerCard(
-            isPremium     = user.isPremium,
-            membership    = user.toPremiumMembership(),
-            onUpgradeClick = onNavigateToPremium,
-            modifier      = Modifier.fillMaxWidth()
-        )
-
-        // ── Quick access ──────────────────────────────────────────────────────
-        SectionHeader("Quick Access")
+        // ── Quick actions ──────────────────────────────────────────────────────
+        SectionHeader("Quick Actions")
         QuickActionsGrid(
             onNotes       = onNavigateToNotes,
             onLectures    = onNavigateToLectures,
@@ -243,7 +232,17 @@ private fun HomeContent(
             onPremium     = onNavigateToPremium
         )
 
-        // ── Leaderboard preview ───────────────────────────────────────────────
+        // ── Premium banner ────────────────────────────────────────────────────
+        if (!user.isPremium) {
+            PremiumBannerCard(
+                isPremium     = false,
+                membership    = user.toPremiumMembership(),
+                onUpgradeClick = onNavigateToPremium,
+                modifier      = Modifier.fillMaxWidth()
+            )
+        }
+
+        // ── Top learners ──────────────────────────────────────────────────────
         if (topEntries.isNotEmpty()) {
             LeaderboardPreviewSection(
                 entries    = topEntries,
@@ -252,20 +251,46 @@ private fun HomeContent(
             )
         }
 
-        // ── Achievements ──────────────────────────────────────────────────────
-        SectionHeader("Achievements")
-        NtfCard(modifier = Modifier.fillMaxWidth()) {
-            AchievementsMiniRow(
-                quizzesCompleted = user.quizzesCompleted,
-                streak           = user.streak,
-                resourcesOpened  = user.resourcesOpened,
-                level            = user.level
-            )
-        }
-
-        // ── Announcements ─────────────────────────────────────────────────────
+        // ── Latest announcements ──────────────────────────────────────────────
         SectionHeader("Latest Announcements")
         AnnouncementsSection(onAnnouncementClick = onNavigateToAnnouncementDetail)
+    }
+}
+
+// ── Subjects grid ──────────────────────────────────────────────────────────────
+@Composable
+private fun SubjectsGrid(onNavigateToSubject: (String) -> Unit) {
+    val subjects = listOf(
+        Triple("MATHS",   "Maths",   "📐"),
+        Triple("SCIENCE", "Science", "🔬"),
+        Triple("SST",     "SST",     "🌍"),
+        Triple("ENGLISH", "English", "📖"),
+        Triple("HINDI",   "Hindi",   "🇮🇳")
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        subjects.forEach { (key, label, emoji) ->
+            Column(
+                modifier = Modifier
+                    .clickable { onNavigateToSubject(key) }
+                    .padding(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(NeonGreen.copy(0.10f), RoundedCornerShape(14.dp))
+                        .border(1.dp, NeonGreen.copy(0.25f), RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(emoji, fontSize = 22.sp)
+                }
+                Text(label, fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
+            }
+        }
     }
 }
 
@@ -275,29 +300,34 @@ private fun HomeTopBar(
     user: User,
     unreadNotificationCount: Int,
     onNotificationClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onOpenDrawer: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Logo + Name
+        // Hamburger + Logo
         Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onOpenDrawer, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Rounded.Menu, null, tint = TextSecondary, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(6.dp))
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(32.dp)
                     .background(
                         Brush.linearGradient(listOf(AccentCyan, AccentEmerald)),
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text("NT", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                Text("NT", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                "Next Toppers Feed",
+                "Next Toppers",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
@@ -356,29 +386,23 @@ private fun GreetingSection(user: User) {
 
     Column {
         Text(
-            text = "$greeting, $firstName! 👋",
+            text     = "$greeting, $firstName",
             fontSize = 14.sp,
-            color = TextSecondary
+            color    = TextSecondary
         )
         Spacer(Modifier.height(2.dp))
         Row {
             Text(
-                text = "Let's reach the ",
-                fontSize = 20.sp,
+                text       = "Study smarter, ",
+                fontSize   = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color      = TextPrimary
             )
             Text(
-                text = "next level",
-                fontSize = 20.sp,
+                text       = "reach the top",
+                fontSize   = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = AccentCyan
-            )
-            Text(
-                text = " today!",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color      = AccentCyan
             )
         }
     }

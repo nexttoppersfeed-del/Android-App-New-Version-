@@ -4,6 +4,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.nexttoppers.feed.data.model.User
+import com.nexttoppers.feed.util.AppLogger
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -106,16 +107,44 @@ class UserRepository @Inject constructor(
                     .get()
                     .await()
 
-            val user =
-                snapshot.toObject(User::class.java)
-                    ?: return Result.failure(
-                        Exception("User not found")
-                    )
+            if (!snapshot.exists()) {
+                AppLogger.warn("UserRepository", "User not found for uid=$uid")
+                return Result.failure(Exception("User not found: $uid"))
+            }
+
+            val data = snapshot.data ?: run {
+                AppLogger.warn("UserRepository", "Empty document for uid=$uid")
+                return Result.failure(Exception("Empty user document: $uid"))
+            }
+
+            // Handle both app schema (name/photoUrl) and website schema (displayName/avatar)
+            val name = listOf("name", "displayName", "username")
+                .firstNotNullOfOrNull { key ->
+                    (data[key] as? String)?.takeIf { it.isNotBlank() }
+                } ?: ""
+
+            val photoUrl = listOf("photoUrl", "avatar", "profilePicture", "photo")
+                .firstNotNullOfOrNull { key ->
+                    (data[key] as? String)?.takeIf { it.isNotBlank() }
+                } ?: ""
+
+            if (name.isBlank()) {
+                AppLogger.warn("UserRepository", "Resolved blank name for uid=$uid (data keys: ${data.keys})")
+            }
+
+            // Use toObject for the remaining fields and override name/photoUrl with the resolved values
+            val base = snapshot.toObject(User::class.java) ?: User(uid = uid)
+            val user = base.copy(
+                uid      = uid,
+                name     = name,
+                photoUrl = photoUrl
+            )
 
             Result.success(user)
 
         } catch (e: Exception) {
 
+            AppLogger.error("UserRepository", "getUser failed for uid=$uid: ${e.message}")
             Result.failure(e)
         }
     }
