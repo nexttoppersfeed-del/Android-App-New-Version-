@@ -454,4 +454,3 @@ private fun EmptyCommunity(onPostClick: () -> Unit) {
         }
     }
 }
-}
