@@ -85,7 +85,7 @@ class ChatViewModel @Inject constructor(
                     if (user.photoUrl.isNotBlank()) resolvedPhotos[otherId] = user.photoUrl
                 }
                 .onFailure { err ->
-                    AppLogger.warn("ChatViewModel", "Could not resolve user $otherId: ${err.message}")
+    AppLogger.w("ChatViewModel", "Could not resolve user $otherId: ${err.message}")
                 }
         }
 
