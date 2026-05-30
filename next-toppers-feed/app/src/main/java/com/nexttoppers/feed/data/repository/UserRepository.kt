@@ -108,16 +108,15 @@ class UserRepository @Inject constructor(
                     .await()
 
             if (!snapshot.exists()) {
-                AppLogger.warn("UserRepository", "User not found for uid=$uid")
+                AppLogger.w("UserRepository", "User not found for uid=$uid")
                 return Result.failure(Exception("User not found: $uid"))
             }
 
             val data = snapshot.data ?: run {
-                AppLogger.warn("UserRepository", "Empty document for uid=$uid")
+                AppLogger.w("UserRepository", "Empty document for uid=$uid")
                 return Result.failure(Exception("Empty user document: $uid"))
             }
 
-            // Handle both app schema (name/photoUrl) and website schema (displayName/avatar)
             val name = listOf("name", "displayName", "username")
                 .firstNotNullOfOrNull { key ->
                     (data[key] as? String)?.takeIf { it.isNotBlank() }
@@ -129,14 +128,17 @@ class UserRepository @Inject constructor(
                 } ?: ""
 
             if (name.isBlank()) {
-                AppLogger.warn("UserRepository", "Resolved blank name for uid=$uid (data keys: ${data.keys})")
+                AppLogger.w(
+                    "UserRepository",
+                    "Resolved blank name for uid=$uid (data keys: ${data.keys})"
+                )
             }
 
-            // Use toObject for the remaining fields and override name/photoUrl with the resolved values
             val base = snapshot.toObject(User::class.java) ?: User(uid = uid)
+
             val user = base.copy(
-                uid      = uid,
-                name     = name,
+                uid = uid,
+                name = name,
                 photoUrl = photoUrl
             )
 
@@ -144,7 +146,11 @@ class UserRepository @Inject constructor(
 
         } catch (e: Exception) {
 
-            AppLogger.error("UserRepository", "getUser failed for uid=$uid: ${e.message}")
+            AppLogger.error(
+                "UserRepository",
+                "getUser failed for uid=$uid: ${e.message}"
+            )
+
             Result.failure(e)
         }
     }
