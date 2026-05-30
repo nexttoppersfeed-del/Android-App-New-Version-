@@ -1,10 +1,5 @@
 package com.nexttoppers.feed.ui.community
 
-import kotlinx.coroutines.launch
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -45,6 +40,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -148,32 +144,31 @@ fun CommunityScreen(
             }
 
             // Scroll-to-bottom FAB (visible when not at bottom)
-            AnimatedVisibility(
-                visible = !isAtBottom && posts.isNotEmpty(),
-                enter   = fadeIn(tween(200)),
-                exit    = fadeOut(tween(200)),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 12.dp)
-            ) {
-                FloatingActionButton(
-                    onClick          = {
-                        scope.launch {
-                            listState.animateScrollToItem(posts.size - 1)
-                        }
-                    },
-                    modifier         = Modifier.size(40.dp),
-                    containerColor   = NeonGreen,
-                    contentColor     = BackgroundBlack,
-                    shape            = CircleShape
-                ) {
-                    Icon(
-                        Icons.Rounded.ArrowDownward, null,
-                        modifier = Modifier.size(18.dp)
-                    )
+    Box(
+    modifier = Modifier
+        .align(Alignment.BottomEnd)
+        .padding(end = 16.dp, bottom = 12.dp)
+) {
+    if (!isAtBottom && posts.isNotEmpty()) {
+        FloatingActionButton(
+            onClick = {
+                scope.launch {
+                    listState.animateScrollToItem(posts.size - 1)
                 }
-            }
+            },
+            modifier = Modifier.size(40.dp),
+            containerColor = NeonGreen,
+            contentColor = BackgroundBlack,
+            shape = CircleShape
+        ) {
+            Icon(
+                Icons.Rounded.ArrowDownward,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
         }
+    }
+    }
 
         MessageInputBar(
             value         = messageInput,
