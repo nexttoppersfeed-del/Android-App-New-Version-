@@ -10,86 +10,88 @@ data class User(
 
     val email: String = "",
 
-    val photoUrl: String = "",
+    // F07: website writes "photoURL" (capital URL) — must match exactly
+    val photoURL: String = "",
 
-    val xp: Long = 0L,
+    // F01/F02: role comes from /admins/{uid}.role — "owner"/"admin"/"student"
+    val role: String = "student",
 
-    val streak: Int = 0,
-
-    val level: Int = 1,
-
-    val quizzesCompleted: Int = 0,
-
-    val resourcesOpened: Int = 0,
-
-    // Premium fields
-    val isPremium: Boolean = false,
-
-    val premiumType: String = "free",
-
-    val premiumStart: Timestamp? = null,
-
-    val premiumEnd: Timestamp? = null,
-
-    val premiumActive: Boolean = false,
-
-    val membershipBadge: String = "",
-
-    val joinedAt: Timestamp = Timestamp.now(),
+    val isOnline: Boolean = false,
 
     val lastSeen: Timestamp = Timestamp.now(),
 
-    val lastActive: Timestamp? = null,
+    // F14: website writes "createdAt" (was "joinedAt")
+    val createdAt: Timestamp = Timestamp.now(),
 
-    // Admin fields
-    val isAdmin: Boolean = false,
+    val xp: Long = 0L,
 
+    val level: Int = 1,
+
+    val streak: Int = 0,
+
+    // F21: website stores lastActive as a date string e.g. "2025-06-30"
+    val lastActive: String = "",
+
+    // F16: website uses "totalQuizzes" (was "quizzesCompleted")
+    val totalQuizzes: Int = 0,
+
+    // F17: missing stat fields now present
+    val totalCorrect: Int = 0,
+
+    val totalScore: Int = 0,
+
+    val perfectScores: Int = 0,
+
+    val avgScore: Float = 0f,
+
+    // F15: split from single "resourcesOpened" into two distinct fields
+    val lecturesWatched: Int = 0,
+
+    val pdfsRead: Int = 0,
+
+    val quizzesBySubject: Map<String, Int> = emptyMap(),
+
+    // F18: achievements array, unlocked achievement IDs
+    val achievements: List<String> = emptyList(),
+
+    // isPremium is mirrored from premiumUsers collection by the website
+    val isPremium: Boolean = false,
+
+    val updatedAt: Timestamp = Timestamp.now(),
+
+    // kept for app-only moderation feature
     val banned: Boolean = false
+
 ) {
 
-    fun toMap(): Map<String, Any?> {
+    // F02: isAdmin and isOwner are computed — never stored as fields
+    val isAdmin: Boolean get() = role == "admin" || role == "owner"
+    val isOwner: Boolean get() = role == "owner"
 
-        return mapOf(
+    fun toMap(): Map<String, Any?> = mapOf(
 
-            "uid" to uid,
-
-            "name" to name,
-
-            "email" to email,
-
-            "photoUrl" to photoUrl,
-
-            "xp" to xp,
-
-            "streak" to streak,
-
-            "level" to level,
-
-            "quizzesCompleted" to quizzesCompleted,
-
-            "resourcesOpened" to resourcesOpened,
-
-            "isPremium" to isPremium,
-
-            "premiumType" to premiumType,
-
-            "premiumStart" to premiumStart,
-
-            "premiumEnd" to premiumEnd,
-
-            "premiumActive" to premiumActive,
-
-            "membershipBadge" to membershipBadge,
-
-            "joinedAt" to joinedAt,
-
-            "lastSeen" to lastSeen,
-
-            "lastActive" to (lastActive ?: Timestamp.now()),
-
-            "isAdmin" to isAdmin,
-
-            "banned" to banned
-        )
-    }
+        "uid"             to uid,
+        "name"            to name,
+        "email"           to email,
+        "photoURL"        to photoURL,
+        "role"            to role,
+        "isOnline"        to isOnline,
+        "lastSeen"        to lastSeen,
+        "createdAt"       to createdAt,
+        "xp"              to xp,
+        "level"           to level,
+        "streak"          to streak,
+        "lastActive"      to lastActive,
+        "totalQuizzes"    to totalQuizzes,
+        "totalCorrect"    to totalCorrect,
+        "totalScore"      to totalScore,
+        "perfectScores"   to perfectScores,
+        "avgScore"        to avgScore,
+        "lecturesWatched" to lecturesWatched,
+        "pdfsRead"        to pdfsRead,
+        "quizzesBySubject" to quizzesBySubject,
+        "achievements"    to achievements,
+        "isPremium"       to isPremium,
+        "updatedAt"       to updatedAt
+    )
 }

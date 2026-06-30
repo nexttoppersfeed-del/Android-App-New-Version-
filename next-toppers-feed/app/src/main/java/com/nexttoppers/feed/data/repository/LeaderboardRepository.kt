@@ -9,7 +9,6 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,24 +16,28 @@ import javax.inject.Singleton
 class LeaderboardRepository @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
-    private val usersCol = firestore.collection("users")
+    // F11: website stores leaderboard in /leaderboard/{uid} — NOT users collection
+    private val leaderboardCol = firestore.collection("leaderboard")
 
     // ── Top-N global leaderboard (realtime) ───────────────────────────────────
-    fun observeGlobalLeaderboard(limit: Long = 50): Flow<Result<List<LeaderboardEntry>>> =
+    fun observeGlobalLeaderboard(limit: Long = 100): Flow<Result<List<LeaderboardEntry>>> =
         callbackFlow {
-            val listener = usersCol
+            val listener = leaderboardCol
                 .orderBy("xp", Query.Direction.DESCENDING)
                 .limit(limit)
                 .addSnapshotListener { snap, err ->
                     if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
                     val entries = snap?.documents?.mapIndexedNotNull { idx, doc ->
-                        val uid      = doc.getString("uid")      ?: doc.id
-                        val name     = doc.getString("name")     ?: ""
-                        val photo    = doc.getString("photoUrl") ?: ""
-                        val xp       = doc.getLong("xp")         ?: 0L
-                        val streak   = (doc.getLong("streak")    ?: 0L).toInt()
-                        val level    = (doc.getLong("level")     ?: LevelUtils.levelForXp(xp).toLong()).toInt()
-                        val premium  = doc.getBoolean("premium") ?: false
+                        val uid     = doc.getString("uid") ?: doc.id
+                        val name    = doc.getString("name") ?: ""
+                        // F07: website uses "photoURL" (capital URL)
+                        val photo   = doc.getString("photoURL") ?: ""
+                        val xp      = doc.getLong("xp") ?: 0L
+                        val streak  = (doc.getLong("streak") ?: 0L).toInt()
+                        val level   = (doc.getLong("level")
+                                       ?: LevelUtils.levelForXp(xp).toLong()).toInt()
+                        // F07: website uses "isPremium" in leaderboard doc
+                        val premium = doc.getBoolean("isPremium") ?: false
                         LeaderboardEntry(
                             uid      = uid,
                             name     = name,
@@ -51,66 +54,96 @@ class LeaderboardRepository @Inject constructor(
             awaitClose { listener.remove() }
         }
 
-    // ── Weekly leaderboard — users active in last 7 days, ordered by XP ───────
-    fun observeWeeklyLeaderboard(limit: Long = 50): Flow<Result<List<LeaderboardEntry>>> =
+    // ── Weekly leaderboard — filter by weekKey matching current week ───────────
+    fun observeWeeklyLeaderboard(limit: Long = 100): Flow<Result<List<LeaderboardEntry>>> =
         callbackFlow {
-            val sevenDaysAgo = Date(System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000)
-            val cutoff       = Timestamp(sevenDaysAgo)
-            val listener = usersCol
-                .whereGreaterThanOrEqualTo("lastSeen", cutoff)
-                .orderBy("lastSeen", Query.Direction.DESCENDING)
+            val cal      = java.util.Calendar.getInstance()
+            val year     = cal.get(java.util.Calendar.YEAR)
+            val week     = cal.get(java.util.Calendar.WEEK_OF_YEAR)
+            val weekKey  = "$year-W${week.toString().padStart(2, '0')}"
+
+            val listener = leaderboardCol
+                .whereEqualTo("weekKey", weekKey)
+                .orderBy("xp", Query.Direction.DESCENDING)
                 .limit(limit)
                 .addSnapshotListener { snap, err ->
                     if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-                    val raw = snap?.documents?.mapNotNull { doc ->
-                        val uid     = doc.getString("uid")      ?: doc.id
-                        val name    = doc.getString("name")     ?: ""
-                        val photo   = doc.getString("photoUrl") ?: ""
-                        val xp      = doc.getLong("xp")         ?: 0L
-                        val streak  = (doc.getLong("streak")    ?: 0L).toInt()
-                        val level   = (doc.getLong("level")     ?: LevelUtils.levelForXp(xp).toLong()).toInt()
-                        val premium = doc.getBoolean("premium") ?: false
-                        LeaderboardEntry(uid, name, photo, xp, streak, level, premium, 0)
+                    val entries = snap?.documents?.mapIndexedNotNull { idx, doc ->
+                        val uid     = doc.getString("uid") ?: doc.id
+                        val name    = doc.getString("name") ?: ""
+                        val photo   = doc.getString("photoURL") ?: ""
+                        val xp      = doc.getLong("xp") ?: 0L
+                        val streak  = (doc.getLong("streak") ?: 0L).toInt()
+                        val level   = (doc.getLong("level")
+                                       ?: LevelUtils.levelForXp(xp).toLong()).toInt()
+                        val premium = doc.getBoolean("isPremium") ?: false
+                        LeaderboardEntry(uid, name, photo, xp, streak, level, premium, idx + 1)
                     } ?: emptyList()
-
-                    val ranked = raw
-                        .sortedByDescending { it.xp }
-                        .mapIndexed { idx, e -> e.copy(rank = idx + 1) }
-                    trySend(Result.success(ranked))
+                    trySend(Result.success(entries))
                 }
             awaitClose { listener.remove() }
         }
 
-    // ── Get approximate rank for a single user (one-shot) ────────────────────
+    // ── Monthly leaderboard — filter by monthKey ──────────────────────────────
+    fun observeMonthlyLeaderboard(limit: Long = 100): Flow<Result<List<LeaderboardEntry>>> =
+        callbackFlow {
+            val cal      = java.util.Calendar.getInstance()
+            val year     = cal.get(java.util.Calendar.YEAR)
+            val month    = cal.get(java.util.Calendar.MONTH) + 1
+            val monthKey = "$year-${month.toString().padStart(2, '0')}"
+
+            val listener = leaderboardCol
+                .whereEqualTo("monthKey", monthKey)
+                .orderBy("xp", Query.Direction.DESCENDING)
+                .limit(limit)
+                .addSnapshotListener { snap, err ->
+                    if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
+                    val entries = snap?.documents?.mapIndexedNotNull { idx, doc ->
+                        val uid     = doc.getString("uid") ?: doc.id
+                        val name    = doc.getString("name") ?: ""
+                        val photo   = doc.getString("photoURL") ?: ""
+                        val xp      = doc.getLong("xp") ?: 0L
+                        val streak  = (doc.getLong("streak") ?: 0L).toInt()
+                        val level   = (doc.getLong("level")
+                                       ?: LevelUtils.levelForXp(xp).toLong()).toInt()
+                        val premium = doc.getBoolean("isPremium") ?: false
+                        LeaderboardEntry(uid, name, photo, xp, streak, level, premium, idx + 1)
+                    } ?: emptyList()
+                    trySend(Result.success(entries))
+                }
+            awaitClose { listener.remove() }
+        }
+
+    // ── Get user's rank by counting documents with higher XP ─────────────────
     suspend fun getUserRank(uid: String): Result<Int> = runCatching {
-        val userSnap = usersCol.document(uid).get().await()
+        val userSnap = leaderboardCol.document(uid).get().await()
         val userXp   = userSnap.getLong("xp") ?: 0L
 
-        val higherSnap = usersCol
+        val higherSnap = leaderboardCol
             .whereGreaterThan("xp", userXp)
             .get().await()
         higherSnap.size() + 1
     }
 
-    // ── Fetch a page of entries starting after a given rank (pagination) ──────
+    // ── Paginated fetch ───────────────────────────────────────────────────────
     suspend fun getLeaderboardPage(
         afterRank: Int = 0,
         pageSize: Long = 20
     ): Result<List<LeaderboardEntry>> = runCatching {
-        val snap = usersCol
+        val snap = leaderboardCol
             .orderBy("xp", Query.Direction.DESCENDING)
             .limit(afterRank + pageSize)
             .get().await()
         snap.documents
             .drop(afterRank)
             .mapIndexedNotNull { idx, doc ->
-                val uid     = doc.getString("uid")      ?: doc.id
-                val name    = doc.getString("name")     ?: ""
-                val photo   = doc.getString("photoUrl") ?: ""
-                val xp      = doc.getLong("xp")         ?: 0L
-                val streak  = (doc.getLong("streak")    ?: 0L).toInt()
-                val level   = (doc.getLong("level")     ?: LevelUtils.levelForXp(xp).toLong()).toInt()
-                val premium = doc.getBoolean("premium") ?: false
+                val uid     = doc.getString("uid") ?: doc.id
+                val name    = doc.getString("name") ?: ""
+                val photo   = doc.getString("photoURL") ?: ""
+                val xp      = doc.getLong("xp") ?: 0L
+                val streak  = (doc.getLong("streak") ?: 0L).toInt()
+                val level   = (doc.getLong("level") ?: LevelUtils.levelForXp(xp).toLong()).toInt()
+                val premium = doc.getBoolean("isPremium") ?: false
                 LeaderboardEntry(uid, name, photo, xp, streak, level, premium, afterRank + idx + 1)
             }
     }

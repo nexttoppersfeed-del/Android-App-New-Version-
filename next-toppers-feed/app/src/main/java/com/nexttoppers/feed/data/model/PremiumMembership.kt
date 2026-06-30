@@ -20,13 +20,15 @@ enum class MembershipBadge(val label: String) {
     EARLY_MEMBER("EARLY MEMBER")
 }
 
-// ── Runtime membership state ───────────────────────────────────────────────────
+// ── Runtime membership state (sourced from /premiumUsers/{uid}) ────────────────
 data class PremiumMembership(
     val type: MembershipType = MembershipType.FREE,
     val isActive: Boolean = false,
     val startDate: Timestamp? = null,
     val endDate: Timestamp? = null,
-    val badge: MembershipBadge = MembershipBadge.NONE
+    val badge: MembershipBadge = MembershipBadge.NONE,
+    val plan: String = "",
+    val daysRemaining: Int = 0
 ) {
     val isExpired: Boolean
         get() {
@@ -36,7 +38,7 @@ data class PremiumMembership(
             return end.toDate().time < System.currentTimeMillis()
         }
 
-    val daysRemaining: Int
+    val daysLeft: Int
         get() {
             val end = endDate ?: return 0
             if (type == MembershipType.LIFETIME) return Int.MAX_VALUE
@@ -114,19 +116,12 @@ val premiumPlans: List<PremiumPlan> = listOf(
     )
 )
 
-// ── Extension: derive PremiumMembership from User ──────────────────────────────
+// ── Extension: simple fallback from User.isPremium (primary source is premiumUsers) ─
 fun User.toPremiumMembership(): PremiumMembership {
-    val type = MembershipType.values()
-        .firstOrNull { it.name.equals(premiumType, ignoreCase = true) }
-        ?: MembershipType.FREE
-    val badge = MembershipBadge.values()
-        .firstOrNull { it.name == membershipBadge }
-        ?: MembershipBadge.NONE
+    if (!isPremium) return PremiumMembership()
     return PremiumMembership(
-        type      = type,
-        isActive  = isPremium && premiumActive,
-        startDate = premiumStart,
-        endDate   = premiumEnd,
-        badge     = badge
+        type     = MembershipType.MONTHLY,
+        isActive = true,
+        badge    = MembershipBadge.PREMIUM
     )
 }

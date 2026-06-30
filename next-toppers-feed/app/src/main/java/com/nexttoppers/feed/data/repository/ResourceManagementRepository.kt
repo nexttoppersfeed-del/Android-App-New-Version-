@@ -95,7 +95,8 @@ class ResourceManagementRepository @Inject constructor(
             "subject"     to subject,
             "type"        to type,
             "fileUrl"     to fileUrl.trim(),
-            "premium"     to premium,
+            // F06: write "isPremium" to match website files/lectures schema
+            "isPremium"   to premium,
             "tags"        to tags
         )).await()
     }
@@ -105,7 +106,8 @@ class ResourceManagementRepository @Inject constructor(
     }
 
     suspend fun togglePremium(id: String, currentPremium: Boolean): Result<Unit> = runCatching {
-        resourcesCol.document(id).update("premium", !currentPremium).await()
+        // F06: write "isPremium" to match website files/lectures schema
+        resourcesCol.document(id).update("isPremium", !currentPremium).await()
     }
 
     suspend fun getResourceById(id: String): Result<Resource> = runCatching {
@@ -134,7 +136,8 @@ class ResourceManagementRepository @Inject constructor(
         "type"         to r.type,
         "fileUrl"      to r.fileUrl,
         "thumbnailUrl" to r.thumbnailUrl,
-        "premium"      to r.premium,
+        // F06: write "isPremium" to match website files/lectures schema
+        "isPremium"    to r.premium,
         "uploadedBy"   to r.uploadedBy,
         "createdAt"    to r.createdAt,
         "views"        to r.views,

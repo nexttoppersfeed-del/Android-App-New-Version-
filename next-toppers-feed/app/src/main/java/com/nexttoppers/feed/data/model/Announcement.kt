@@ -8,30 +8,31 @@ data class Announcement(
 
     val title: String = "",
 
-    val message: String = "",
+    // F08: website writes "content" not "message" — field name must match exactly
+    val content: String = "",
+
+    val type: String = "",
 
     // Fixed null crash issue
     val imageUrl: String? = null,
 
-    val createdAt: Timestamp =
-        Timestamp.now(),
+    val externalUrl: String = "",
 
-    // Legacy field
+    val priority: Int = 0,
+
+    val createdAt: Timestamp = Timestamp.now(),
+
+    // Legacy app-only fields kept for backward read compat
     val important: Boolean = false,
 
     val pinned: Boolean = false,
 
-    val priority: Int = 0,
-
     val targetAudience: String = "all",
 
     val author: String = "Admin"
+
 ) {
 
     val isUrgent: Boolean
-
-        get() =
-            important ||
-            pinned ||
-            priority >= 10
+        get() = important || pinned || priority >= 10
 }

@@ -21,7 +21,6 @@ class ResourcesRepository @Inject constructor(
     private val lecturesCol = firestore.collection("lectures")
 
     // ── Subject alias expansion ────────────────────────────────────────────────
-    // Firestore whereIn supports max 10 values. We cover common storage variants.
     private fun subjectVariants(subject: String): List<String> {
         val upper = subject.uppercase()
         val lower = subject.lowercase()
@@ -46,9 +45,8 @@ class ResourcesRepository @Inject constructor(
     private fun mapFile(doc: DocumentSnapshot): Resource? {
         val data = doc.data ?: return null
         return try {
-            val rawTitle = data["title"] as? String
-                ?: data["name"] as? String ?: ""
-            val rawType = (data["type"] as? String ?: ResourceType.NOTES.name).uppercase()
+            val rawTitle = data["title"] as? String ?: data["name"] as? String ?: ""
+            val rawType  = (data["type"] as? String ?: ResourceType.NOTES.name).uppercase()
             Resource(
                 id           = doc.id,
                 title        = rawTitle,
@@ -57,11 +55,13 @@ class ResourcesRepository @Inject constructor(
                 description  = data["description"] as? String ?: "",
                 thumbnailUrl = data["thumbnailUrl"] as? String
                                ?: data["thumbnail"] as? String ?: "",
-                fileUrl      = data["downloadUrl"] as? String
+                fileUrl      = data["url"] as? String
+                               ?: data["downloadUrl"] as? String
                                ?: data["fileUrl"] as? String
-                               ?: data["url"] as? String
                                ?: data["resourceUrl"] as? String ?: "",
-                premium      = data["premium"] as? Boolean ?: false,
+                // F06: website uses "isPremium" — check it first, fall back to "premium"
+                premium      = data["isPremium"] as? Boolean
+                               ?: data["premium"] as? Boolean ?: false,
                 createdAt    = data["createdAt"] as? Timestamp
                                ?: data["timestamp"] as? Timestamp ?: Timestamp.now(),
                 views        = (data["views"] as? Long) ?: 0L,
@@ -81,6 +81,7 @@ class ResourcesRepository @Inject constructor(
             val rawTitle  = data["title"] as? String ?: data["name"] as? String ?: ""
             val youtubeId = data["youtubeId"] as? String
                             ?: data["youtube_id"] as? String ?: ""
+            // website field is "videoUrl"
             val videoUrl  = data["videoUrl"] as? String
                             ?: data["url"] as? String
                             ?: data["fileUrl"] as? String
@@ -102,22 +103,23 @@ class ResourcesRepository @Inject constructor(
                     videoUrl.isNotEmpty()  -> videoUrl
                     else                   -> ""
                 },
-                premium      = data["premium"] as? Boolean ?: false,
+                // F06: website uses "isPremium" — check it first, fall back to "premium"
+                premium      = data["isPremium"] as? Boolean
+                               ?: data["premium"] as? Boolean ?: false,
                 createdAt    = data["createdAt"] as? Timestamp
                                ?: data["timestamp"] as? Timestamp ?: Timestamp.now(),
                 views        = (data["views"] as? Long) ?: 0L,
                 uploadedBy   = data["uploadedBy"] as? String
                                ?: data["createdBy"] as? String ?: "Admin",
-                duration     = data["duration"] as? String ?: "",
+                duration     = data["duration"]?.toString() ?: "",
                 tags         = (data["tags"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                youtubeId    = youtubeId
+                youtubeId    = youtubeId,
+                folderId     = data["folderId"] as? String ?: ""
             )
         } catch (e: Exception) { null }
     }
 
     // ── Realtime by subject — merges files + lectures ─────────────────────────
-    // NOTE: No orderBy on the Firestore query to avoid composite-index requirement.
-    // Sorting is done client-side in mergeAndSend().
 
     fun observeBySubject(subject: String): Flow<Result<List<Resource>>> = callbackFlow {
         val variants = subjectVariants(subject)
@@ -156,7 +158,7 @@ class ResourcesRepository @Inject constructor(
         }
     }
 
-    // ── All resources — merges files + lectures ────────────────────────────────
+    // ── All resources ──────────────────────────────────────────────────────────
 
     fun observeAll(): Flow<Result<List<Resource>>> = callbackFlow {
         var filesItems: List<Resource>   = emptyList()
@@ -193,7 +195,7 @@ class ResourcesRepository @Inject constructor(
         }
     }
 
-    // ── By type (within subject) — client-side type filtering ──────────────────
+    // ── By type (within subject) ───────────────────────────────────────────────
 
     suspend fun getBySubjectAndType(subject: String, type: String): Result<List<Resource>> =
         runCatching {
@@ -213,7 +215,7 @@ class ResourcesRepository @Inject constructor(
             }
         }
 
-    // ── Single resource — checks files first, then lectures ───────────────────
+    // ── Single resource ────────────────────────────────────────────────────────
 
     suspend fun getById(id: String): Result<Resource> = runCatching {
         val fileSnap = filesCol.document(id).get().await()
@@ -255,7 +257,7 @@ class ResourcesRepository @Inject constructor(
             .take(limit.toInt())
     }
 
-    // ── Count per subject (for category cards) ────────────────────────────────
+    // ── Count per subject ──────────────────────────────────────────────────────
 
     suspend fun getCountBySubject(): Map<String, Int> {
         return try {

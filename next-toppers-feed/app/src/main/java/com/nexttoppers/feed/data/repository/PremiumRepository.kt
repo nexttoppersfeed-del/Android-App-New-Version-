@@ -1,13 +1,12 @@
 package com.nexttoppers.feed.data.repository
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.nexttoppers.feed.data.model.MembershipBadge
 import com.nexttoppers.feed.data.model.MembershipType
 import com.nexttoppers.feed.data.model.PremiumMembership
 import com.nexttoppers.feed.data.model.PremiumPlan
-import com.nexttoppers.feed.data.model.User
-import com.nexttoppers.feed.data.model.toPremiumMembership
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -19,12 +18,60 @@ import javax.inject.Singleton
 class PremiumRepository @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
+    // F03: primary source of truth is /premiumUsers/{uid} — same as PremiumContext.tsx
+    private val premiumUsersCol = firestore.collection("premiumUsers")
+    // users doc isPremium mirror is updated when premiumUsers changes
+    private val usersCol        = firestore.collection("users")
 
-    private val users = firestore.collection("users")
+    // ── Map a premiumUsers document to PremiumMembership ──────────────────────
+    private fun mapMembership(snap: DocumentSnapshot): PremiumMembership {
+        val data = snap.data ?: return PremiumMembership()
 
-    // ── Realtime premium status stream ─────────────────────────────────────────
+        val isPremium = data["isPremium"] as? Boolean ?: false
+        if (!isPremium) return PremiumMembership()
+
+        val planStr = data["plan"] as? String ?: ""
+        val type = when (planStr.lowercase()) {
+            "day", "daily"    -> MembershipType.WEEKLY   // website "day" plan → mapped to WEEKLY
+            "month", "monthly"-> MembershipType.MONTHLY
+            "year", "yearly"  -> MembershipType.YEARLY
+            "lifetime"        -> MembershipType.LIFETIME
+            else              -> MembershipType.MONTHLY
+        }
+
+        // F03: website uses "expiryTime" as primary; "expiresAt" is legacy duplicate
+        val expiryTime = data["expiryTime"] as? Timestamp
+            ?: data["expiresAt"] as? Timestamp
+
+        val activatedAt = data["activatedAt"] as? Timestamp
+
+        val badge = when (type) {
+            MembershipType.YEARLY, MembershipType.LIFETIME -> MembershipBadge.VIP
+            MembershipType.FREE                            -> MembershipBadge.NONE
+            else                                           -> MembershipBadge.PREMIUM
+        }
+
+        val daysRemaining = (data["daysRemaining"] as? Long)?.toInt() ?: run {
+            expiryTime?.let {
+                val diff = it.toDate().time - System.currentTimeMillis()
+                (diff / (1000L * 60 * 60 * 24)).toInt().coerceAtLeast(0)
+            } ?: 0
+        }
+
+        return PremiumMembership(
+            type          = type,
+            isActive      = isPremium,
+            startDate     = activatedAt,
+            endDate       = expiryTime,
+            badge         = badge,
+            plan          = planStr,
+            daysRemaining = daysRemaining
+        )
+    }
+
+    // ── Real-time premium status — mirrors PremiumContext.tsx onSnapshot ───────
     fun observePremiumStatus(uid: String): Flow<Result<PremiumMembership>> = callbackFlow {
-        val listener = users.document(uid).addSnapshotListener { snap, err ->
+        val listener = premiumUsersCol.document(uid).addSnapshotListener { snap, err ->
             if (err != null) {
                 trySend(Result.failure(err))
                 return@addSnapshotListener
@@ -33,13 +80,35 @@ class PremiumRepository @Inject constructor(
                 trySend(Result.success(PremiumMembership()))
                 return@addSnapshotListener
             }
-            val user = snap.toObject(User::class.java) ?: User()
-            trySend(Result.success(user.toPremiumMembership()))
+
+            val membership = mapMembership(snap)
+
+            // F03: auto-expiry check — same as PremiumContext.tsx
+            if (membership.isActive && membership.isExpired) {
+                premiumUsersCol.document(uid).update("isPremium", false)
+                usersCol.document(uid).update("isPremium", false)
+                trySend(Result.success(PremiumMembership()))
+            } else {
+                trySend(Result.success(membership))
+            }
         }
         awaitClose { listener.remove() }
     }
 
-    // ── Activate premium (placeholder payment succeeded) ───────────────────────
+    // ── One-shot fetch ─────────────────────────────────────────────────────────
+    suspend fun getPremiumStatus(uid: String): Result<PremiumMembership> = runCatching {
+        val snap = premiumUsersCol.document(uid).get().await()
+        if (!snap.exists()) return Result.success(PremiumMembership())
+        val membership = mapMembership(snap)
+        if (membership.isActive && membership.isExpired) {
+            premiumUsersCol.document(uid).update("isPremium", false)
+            usersCol.document(uid).update("isPremium", false)
+            return Result.success(PremiumMembership())
+        }
+        membership
+    }
+
+    // ── Admin: grant premium — writes to /premiumUsers/{uid} as website does ──
     suspend fun activatePremium(uid: String, plan: PremiumPlan): Result<Unit> = runCatching {
         val nowMs = System.currentTimeMillis()
         val endMs = when (plan.type) {
@@ -49,52 +118,51 @@ class PremiumRepository @Inject constructor(
             MembershipType.LIFETIME -> nowMs + 100L * 365 * 24 * 60 * 60 * 1000
             MembershipType.FREE     -> nowMs
         }
-        val updates = mapOf(
-            "isPremium"       to true,
-            "premium"         to true,
-            "premiumType"     to plan.type.name.lowercase(),
-            "premiumStart"    to Timestamp.now(),
-            "premiumEnd"      to Timestamp(endMs / 1000, 0),
-            "premiumActive"   to true,
-            "membershipBadge" to plan.badge.name
-        )
-        users.document(uid).update(updates).await()
+        val planId = when (plan.type) {
+            MembershipType.WEEKLY   -> "day"
+            MembershipType.MONTHLY  -> "month"
+            MembershipType.YEARLY   -> "year"
+            MembershipType.LIFETIME -> "lifetime"
+            MembershipType.FREE     -> "free"
+        }
+        val expiryTimestamp = Timestamp(endMs / 1000, 0)
+
+        // Write to /premiumUsers/{uid} — the website's grant flow
+        premiumUsersCol.document(uid).set(mapOf(
+            "uid"          to uid,
+            "isPremium"    to true,
+            "plan"         to planId,
+            "activatedAt"  to Timestamp.now(),
+            "expiryTime"   to expiryTimestamp,
+            "expiresAt"    to expiryTimestamp,
+            "grantedBy"    to "app",
+            "updatedAt"    to Timestamp.now()
+        )).await()
+
+        // Mirror isPremium to users doc
+        usersCol.document(uid).update("isPremium", true).await()
     }
 
-    // ── Check expiry and downgrade to free if expired ──────────────────────────
+    // ── Revoke premium ─────────────────────────────────────────────────────────
+    suspend fun deactivatePremium(uid: String): Result<Unit> = runCatching {
+        premiumUsersCol.document(uid).update("isPremium", false).await()
+        usersCol.document(uid).update("isPremium", false).await()
+    }
+
     suspend fun checkAndRefreshExpiry(uid: String) {
         runCatching {
-            val snap = users.document(uid).get().await()
-            val user = snap.toObject(User::class.java) ?: return
-            if (user.toPremiumMembership().isExpired) {
-                users.document(uid).update(
-                    mapOf(
-                        "isPremium"    to false,
-                        "premium"      to false,
-                        "premiumActive" to false,
-                        "premiumType"  to "free"
-                    )
-                ).await()
+            val snap = premiumUsersCol.document(uid).get().await()
+            if (!snap.exists()) return
+            val membership = mapMembership(snap)
+            if (membership.isActive && membership.isExpired) {
+                premiumUsersCol.document(uid).update("isPremium", false).await()
+                usersCol.document(uid).update("isPremium", false).await()
             }
         }
     }
 
-    // ── Restore purchase placeholder ───────────────────────────────────────────
     suspend fun restorePurchase(uid: String): Result<PremiumMembership> = runCatching {
-        val snap = users.document(uid).get().await()
-        (snap.toObject(User::class.java) ?: User()).toPremiumMembership()
-    }
-
-    // ── Deactivate premium (cancel / manual) ───────────────────────────────────
-    suspend fun deactivatePremium(uid: String): Result<Unit> = runCatching {
-        users.document(uid).update(
-            mapOf(
-                "isPremium"       to false,
-                "premium"         to false,
-                "premiumActive"   to false,
-                "premiumType"     to "free",
-                "membershipBadge" to MembershipBadge.NONE.name
-            )
-        ).await()
+        val snap = premiumUsersCol.document(uid).get().await()
+        if (!snap.exists()) PremiumMembership() else mapMembership(snap)
     }
 }

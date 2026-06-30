@@ -22,17 +22,22 @@ class ChatRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) {
-    // privateChatMeta — stores chat metadata (participants, last message, unread counts)
-    private val chatMetaCol    = firestore.collection("privateChatMeta")
-    // privateChats — stores the actual message sub-collections
+    private val chatMetaCol     = firestore.collection("privateChatMeta")
     private val privateChatsCol = firestore.collection("privateChats")
 
-    // ── Manual mapping for flexible field names between website and app schemas ─
+    // ── Mappers ───────────────────────────────────────────────────────────────
 
     private fun mapToChat(doc: DocumentSnapshot): Chat? {
         val data = doc.data ?: return null
         return try {
-            val unreadRaw = (data["unread"] ?: data["unreadCount"]) as? Map<*, *>
+            val uid = auth.currentUser?.uid ?: ""
+            // F13: website uses flat "unread_{uid}" fields — not a nested "unread" map
+            val myUnread = (data["unread_$uid"] as? Long)?.toInt()
+                // legacy fallback: nested map written by older app versions
+                ?: (data["unread"] as? Map<*, *>)?.let { map ->
+                    (map[uid] as? Long)?.toInt() ?: (map[uid] as? Int)
+                } ?: 0
+
             Chat(
                 chatId            = doc.id,
                 type              = data["type"] as? String ?: ChatType.PRIVATE.name,
@@ -53,12 +58,8 @@ class ChatRepository @Inject constructor(
                                     ?: Timestamp.now(),
                 lastMessageSender = data["lastSenderId"] as? String
                                     ?: data["lastMessageSender"] as? String ?: "",
-                unreadCount       = unreadRaw
-                                        ?.mapKeys { it.key as? String ?: "" }
-                                        ?.mapValues {
-                                            (it.value as? Long)?.toInt()
-                                                ?: (it.value as? Int) ?: 0
-                                        } ?: emptyMap(),
+                // F13: return current user's flat unread count
+                unreadCount       = mapOf(uid to myUnread),
                 pinned            = data["pinned"] as? Boolean ?: false,
                 groupName         = data["groupName"] as? String ?: "",
                 groupPhoto        = data["groupPhoto"] as? String ?: "",
@@ -74,11 +75,14 @@ class ChatRepository @Inject constructor(
                 messageId     = doc.id,
                 senderId      = data["senderId"] as? String ?: "",
                 senderName    = data["senderName"] as? String ?: "",
-                // privateChats uses "text"; legacy "chats" used "message"
-                message       = data["text"] as? String
-                                ?: data["message"] as? String
+                // F12: website writes "message" field — read it with "text" / "content" as fallback
+                message       = data["message"] as? String
+                                ?: data["text"] as? String
                                 ?: data["content"] as? String ?: "",
-                timestamp     = data["timestamp"] as? Timestamp ?: Timestamp.now(),
+                // F12: website uses "createdAt" — read it with "timestamp" as fallback
+                timestamp     = data["createdAt"] as? Timestamp
+                                ?: data["timestamp"] as? Timestamp
+                                ?: Timestamp.now(),
                 type          = data["type"] as? String ?: "TEXT",
                 seen          = data["seen"] as? Boolean ?: false,
                 deleted       = data["deleted"] as? Boolean ?: false,
@@ -87,7 +91,7 @@ class ChatRepository @Inject constructor(
         } catch (e: Exception) { null }
     }
 
-    // ── Chat list ────────────────────────────────────────────────────────────────
+    // ── Chat list ─────────────────────────────────────────────────────────────
 
     fun observeUserChats(uid: String): Flow<Result<List<Chat>>> = callbackFlow {
         val query = chatMetaCol
@@ -112,13 +116,14 @@ class ChatRepository @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    // ── Messages ─────────────────────────────────────────────────────────────────
+    // ── Messages ──────────────────────────────────────────────────────────────
 
     fun observeMessages(chatId: String, limit: Long = 200): Flow<Result<List<ChatMessage>>> =
         callbackFlow {
             val query = privateChatsCol.document(chatId)
                 .collection("messages")
-                .orderBy("timestamp", Query.Direction.ASCENDING)
+                // F12: website orders by "createdAt"
+                .orderBy("createdAt", Query.Direction.ASCENDING)
                 .limitToLast(limit)
 
             val listener = query.addSnapshotListener { snap, err ->
@@ -130,45 +135,55 @@ class ChatRepository @Inject constructor(
         }
 
     suspend fun sendMessage(chatId: String, message: ChatMessage): Result<String> = runCatching {
-        val id = UUID.randomUUID().toString()
-        // Write message to privateChats sub-collection using "text" field (website schema)
+        val id  = UUID.randomUUID().toString()
+        val now = Timestamp.now()
+
+        // F12: write "message" field and "createdAt" to match website schema
         privateChatsCol.document(chatId)
             .collection("messages")
             .document(id)
             .set(mapOf(
                 "senderId"      to message.senderId,
                 "senderName"    to message.senderName,
-                "text"          to message.message,
-                "timestamp"     to message.timestamp,
+                "message"       to message.message,
+                "createdAt"     to now,
                 "type"          to message.type,
                 "seen"          to message.seen,
                 "deleted"       to message.deleted,
                 "attachmentUrl" to message.attachmentUrl
             )).await()
 
-        // Update metadata in privateChatMeta using website field names
         chatMetaCol.document(chatId).update(mapOf(
-            "lastMessage"    to message.message,
-            "lastMessageAt"  to message.timestamp,
-            "lastSenderId"   to message.senderId,
-            "updatedAt"      to Timestamp.now()
+            "lastMessage"   to message.message,
+            "lastMessageAt" to now,
+            "lastSenderId"  to message.senderId,
+            "updatedAt"     to now
         )).await()
         id
     }
 
+    // F13: use flat "unread_{uid}" field to match website schema
     suspend fun markMessagesAsSeen(chatId: String, uid: String): Result<Unit> = runCatching {
-        chatMetaCol.document(chatId).update("unread.$uid", 0).await()
+        chatMetaCol.document(chatId).update("unread_$uid", 0).await()
+    }
+
+    suspend fun incrementUnread(chatId: String, recipientUid: String): Result<Unit> = runCatching {
+        chatMetaCol.document(chatId).update("unread_$recipientUid", FieldValue.increment(1)).await()
     }
 
     suspend fun deleteMessage(chatId: String, messageId: String): Result<Unit> = runCatching {
         privateChatsCol.document(chatId)
             .collection("messages")
             .document(messageId)
-            .update("deleted", true, "text", "This message was deleted")
+            // website soft-deletes: sets message to "" and deleted to true
+            .update(mapOf(
+                "deleted" to true,
+                "message" to ""
+            ))
             .await()
     }
 
-    // ── Create / find chats ──────────────────────────────────────────────────────
+    // ── Create / find chats ───────────────────────────────────────────────────
 
     suspend fun getOrCreatePrivateChat(
         myUid: String,
@@ -178,21 +193,24 @@ class ChatRepository @Inject constructor(
         otherName: String,
         otherPhoto: String
     ): Result<String> = runCatching {
+        // chatId format: sorted alphabetically — matches website's Chat.tsx
         val chatId = if (myUid < otherUid) "${myUid}_${otherUid}" else "${otherUid}_${myUid}"
         val docRef = chatMetaCol.document(chatId)
-        val snap = docRef.get().await()
+        val snap   = docRef.get().await()
 
         if (!snap.exists()) {
+            // F13: write flat "unread_{uid}" fields to match website schema
             docRef.set(mapOf(
-                "participants"      to listOf(myUid, otherUid),
-                "participantNames"  to mapOf(myUid to myName, otherUid to otherName),
-                "participantPhotos" to mapOf(myUid to myPhoto, otherUid to otherPhoto),
-                "type"              to ChatType.PRIVATE.name,
-                "lastMessage"       to "",
-                "lastMessageAt"     to Timestamp.now(),
-                "lastSenderId"      to "",
-                "unread"            to mapOf(myUid to 0, otherUid to 0),
-                "createdAt"         to Timestamp.now()
+                "participants"           to listOf(myUid, otherUid),
+                "participantNames"       to mapOf(myUid to myName, otherUid to otherName),
+                "participantPhotos"      to mapOf(myUid to myPhoto, otherUid to otherPhoto),
+                "type"                   to ChatType.PRIVATE.name,
+                "lastMessage"            to "",
+                "lastMessageAt"          to Timestamp.now(),
+                "lastSenderId"           to "",
+                "unread_$myUid"          to 0,
+                "unread_$otherUid"       to 0,
+                "createdAt"              to Timestamp.now()
             )).await()
         }
         chatId
@@ -204,6 +222,7 @@ class ChatRepository @Inject constructor(
         participantNames: Map<String, String>
     ): Result<String> = runCatching {
         val chatId = UUID.randomUUID().toString()
+        val unreadMap = participants.associate { "unread_$it" to 0 }
         chatMetaCol.document(chatId).set(mapOf(
             "type"             to ChatType.GROUP.name,
             "groupName"        to groupName,
@@ -212,7 +231,7 @@ class ChatRepository @Inject constructor(
             "lastMessage"      to "",
             "lastMessageAt"    to Timestamp.now(),
             "createdAt"        to Timestamp.now()
-        )).await()
+        ) + unreadMap).await()
         chatId
     }
 

@@ -2,6 +2,7 @@ package com.nexttoppers.feed.data.repository
 
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.MembershipBadge
@@ -22,21 +23,59 @@ class PremiumRequestRepository @Inject constructor(
     private val auth: FirebaseAuth
 ) {
     private val requestsCol = firestore.collection("premiumRequests")
-    private val usersCol = firestore.collection("users")
+    private val usersCol    = firestore.collection("users")
+    // F03: premiumUsers collection — synced on approval
+    private val premiumCol  = firestore.collection("premiumUsers")
 
-    // ── Observe requests ──────────────────────────────────────────────────────────
+    // ── Manual mapper — reads both website and legacy field names ─────────────
+
+    private fun mapRequest(doc: DocumentSnapshot): PremiumRequest? {
+        val data = doc.data ?: return null
+        return try {
+            // F11: website writes "uid" — fall back to legacy "userId"
+            val uid      = data["uid"] as? String ?: data["userId"] as? String ?: ""
+            // F11: website writes "userName" — fall back to legacy "username"
+            val userName = data["userName"] as? String ?: data["username"] as? String ?: ""
+            // F11: website writes "price" as number — fall back to legacy "amount" string
+            val price    = (data["price"] as? Double)
+                            ?: (data["price"] as? Long)?.toDouble()
+                            ?: (data["amount"] as? String)?.toDoubleOrNull() ?: 0.0
+            // F11: website writes "transactionId" — fall back to legacy "utrId"
+            val txId     = data["transactionId"] as? String ?: data["utrId"] as? String ?: ""
+
+            PremiumRequest(
+                requestId               = doc.id,
+                uid                     = uid,
+                userName                = userName,
+                userEmail               = data["userEmail"] as? String ?: "",
+                plan                    = data["plan"] as? String ?: "",
+                price                   = price,
+                transactionId           = txId,
+                paymentScreenshotBase64 = data["paymentScreenshotBase64"] as? String ?: "",
+                status                  = data["status"] as? String
+                                          ?: PremiumRequestStatus.PENDING.name,
+                createdAt               = data["createdAt"] as? Timestamp ?: Timestamp.now(),
+                reviewedAt              = data["reviewedAt"] as? Timestamp,
+                reviewedBy              = data["reviewedBy"] as? String ?: "",
+                adminNote               = data["adminNote"] as? String ?: "",
+                phoneNumber             = data["phoneNumber"] as? String ?: "",
+                paymentMethod           = data["paymentMethod"] as? String ?: "UPI"
+            )
+        } catch (e: Exception) { null }
+    }
+
+    // ── Observe requests ──────────────────────────────────────────────────────
 
     fun observeAllRequests(statusFilter: String? = null): Flow<Result<List<PremiumRequest>>> =
         callbackFlow {
-            var query: Query = requestsCol.orderBy("createdAt", Query.Direction.DESCENDING).limit(50)
+            var query: Query = requestsCol
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(50)
             if (!statusFilter.isNullOrBlank()) query = query.whereEqualTo("status", statusFilter)
 
             val listener = query.addSnapshotListener { snap, err ->
                 if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-                val requests = snap?.documents?.mapNotNull { doc ->
-                    try { doc.toObject(PremiumRequest::class.java)?.copy(requestId = doc.id) }
-                    catch (e: Exception) { null }
-                } ?: emptyList()
+                val requests = snap?.documents?.mapNotNull { mapRequest(it) } ?: emptyList()
                 trySend(Result.success(requests))
             }
             awaitClose { listener.remove() }
@@ -47,14 +86,28 @@ class PremiumRequestRepository @Inject constructor(
 
     suspend fun getRequestById(requestId: String): Result<PremiumRequest> = runCatching {
         val snap = requestsCol.document(requestId).get().await()
-        snap.toObject(PremiumRequest::class.java)?.copy(requestId = snap.id)
-            ?: throw Exception("Request not found")
+        mapRequest(snap) ?: throw Exception("Request not found")
     }
 
-    // ── Submit request (user-side) ────────────────────────────────────────────────
+    fun observeUserRequests(uid: String): Flow<Result<List<PremiumRequest>>> = callbackFlow {
+        // Try querying by "uid" (website field) — if that returns nothing, try legacy "userId"
+        val listener = requestsCol
+            .whereEqualTo("uid", uid)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(10)
+            .addSnapshotListener { snap, err ->
+                if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
+                val requests = snap?.documents?.mapNotNull { mapRequest(it) } ?: emptyList()
+                trySend(Result.success(requests))
+            }
+        awaitClose { listener.remove() }
+    }
 
+    // ── Submit request (user-side) ─────────────────────────────────────────────
     /**
      * Submit a premium payment request.
+     *
+     * F11: now writes website field names: uid, userName, price (number), transactionId.
      *
      * @param paymentScreenshotBase64 Optional Base64-encoded payment screenshot.
      *   Encode with [com.nexttoppers.feed.util.Base64ImageUtils.bitmapToBase64].
@@ -66,27 +119,38 @@ class PremiumRequestRepository @Inject constructor(
         username: String,
         userEmail: String,
         plan: String,
-        amount: String,
-        utrId: String,
-        paymentScreenshotBase64: String = ""
+        amount: String,          // kept for API compat — converted to price (number)
+        utrId: String,           // kept for API compat — written as transactionId
+        paymentScreenshotBase64: String = "",
+        phoneNumber: String = "",
+        paymentMethod: String = "UPI"
     ): Result<String> = runCatching {
-        val id = UUID.randomUUID().toString()
-        val request = PremiumRequest(
-            requestId                = id,
-            userId                   = userId,
-            username                 = username,
-            userEmail                = userEmail,
-            plan                     = plan,
-            amount                   = amount,
-            utrId                    = utrId,
-            paymentScreenshotBase64  = paymentScreenshotBase64,
-            status                   = PremiumRequestStatus.PENDING.name
+        val id    = UUID.randomUUID().toString()
+        val price = amount.toDoubleOrNull() ?: 0.0
+
+        // F11: write website-compatible field names
+        val data = mapOf(
+            "requestId"               to id,
+            "uid"                     to userId,
+            "userName"                to username,
+            "userEmail"               to userEmail,
+            "plan"                    to plan,
+            "price"                   to price,
+            "transactionId"           to utrId,
+            "paymentScreenshotBase64" to paymentScreenshotBase64,
+            "status"                  to PremiumRequestStatus.PENDING.name,
+            "createdAt"               to Timestamp.now(),
+            "reviewedAt"              to null,
+            "reviewedBy"              to "",
+            "adminNote"               to "",
+            "phoneNumber"             to phoneNumber,
+            "paymentMethod"           to paymentMethod
         )
-        requestsCol.document(id).set(request.toMap()).await()
+        requestsCol.document(id).set(data).await()
         id
     }
 
-    // ── Admin: approve request ────────────────────────────────────────────────────
+    // ── Admin: approve request ────────────────────────────────────────────────
 
     suspend fun approveRequest(
         requestId: String,
@@ -95,14 +159,14 @@ class PremiumRequestRepository @Inject constructor(
         durationDays: Int = 30
     ): Result<Unit> = runCatching {
         val adminUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
-        val nowMs = System.currentTimeMillis()
-        val endMs = nowMs + durationDays.toLong() * 24 * 60 * 60 * 1000
+        val nowMs    = System.currentTimeMillis()
+        val endMs    = nowMs + durationDays.toLong() * 24 * 60 * 60 * 1000
 
         val membershipType = when {
-            plan.contains("weekly", true) || durationDays <= 7   -> MembershipType.WEEKLY
-            plan.contains("yearly", true) || durationDays >= 300 -> MembershipType.YEARLY
-            plan.contains("lifetime", true)                      -> MembershipType.LIFETIME
-            else                                                 -> MembershipType.MONTHLY
+            plan.contains("weekly",   true) || durationDays <= 7   -> MembershipType.WEEKLY
+            plan.contains("yearly",   true) || durationDays >= 300 -> MembershipType.YEARLY
+            plan.contains("lifetime", true)                        -> MembershipType.LIFETIME
+            else                                                   -> MembershipType.MONTHLY
         }
         val badge = when (membershipType) {
             MembershipType.YEARLY, MembershipType.LIFETIME -> MembershipBadge.VIP
@@ -110,11 +174,14 @@ class PremiumRequestRepository @Inject constructor(
         }
 
         firestore.runBatch { batch ->
+            // Mark request approved
             batch.update(requestsCol.document(requestId), mapOf(
                 "status"     to PremiumRequestStatus.APPROVED.name,
                 "reviewedAt" to Timestamp.now(),
                 "reviewedBy" to adminUid
             ))
+
+            // Update user doc
             batch.update(usersCol.document(userId), mapOf(
                 "isPremium"       to true,
                 "premium"         to true,
@@ -124,10 +191,21 @@ class PremiumRequestRepository @Inject constructor(
                 "premiumActive"   to true,
                 "membershipBadge" to badge.name
             ))
+
+            // F03: also write to /premiumUsers/{uid} matching PremiumRepository's expected schema
+            batch.set(premiumCol.document(userId), mapOf(
+                "uid"         to userId,
+                "plan"        to membershipType.name.lowercase(),
+                "startDate"   to Timestamp.now(),
+                "endDate"     to Timestamp(endMs / 1000, 0),
+                "isActive"    to true,
+                "approvedBy"  to adminUid,
+                "approvedAt"  to Timestamp.now()
+            ))
         }.await()
     }
 
-    // ── Admin: reject request ─────────────────────────────────────────────────────
+    // ── Admin: reject request ─────────────────────────────────────────────────
 
     suspend fun rejectRequest(
         requestId: String,
@@ -142,7 +220,7 @@ class PremiumRequestRepository @Inject constructor(
         )).await()
     }
 
-    // ── Pending count ─────────────────────────────────────────────────────────────
+    // ── Pending count ─────────────────────────────────────────────────────────
 
     fun observePendingCount(): Flow<Int> = callbackFlow {
         val listener = requestsCol

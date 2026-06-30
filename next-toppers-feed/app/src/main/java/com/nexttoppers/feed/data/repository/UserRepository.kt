@@ -3,12 +3,16 @@ package com.nexttoppers.feed.data.repository
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.nexttoppers.feed.data.model.User
 import com.nexttoppers.feed.util.AppLogger
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,95 +21,70 @@ class UserRepository @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
 
-    private val usersCollection =
-        firestore.collection("users")
+    private val usersCollection = firestore.collection("users")
+    // F01: admin role source of truth per Firebase Architecture doc
+    private val adminsCollection = firestore.collection("admins")
 
-    fun observeUser(
-        uid: String
-    ): Flow<Result<User>> = callbackFlow {
+    fun observeUser(uid: String): Flow<Result<User>> = callbackFlow {
 
-        val listener =
-            usersCollection.document(uid)
-                .addSnapshotListener { snapshot, error ->
+        val listener = usersCollection.document(uid)
+            .addSnapshotListener { snapshot, error ->
 
-                    if (error != null) {
-
-                        trySend(
-                            Result.failure(error)
-                        )
-
-                        return@addSnapshotListener
-                    }
-
-                    val user =
-                        snapshot?.toObject(User::class.java)
-
-                    if (user != null) {
-
-                        trySend(
-                            Result.success(user)
-                        )
-                    }
+                if (error != null) {
+                    trySend(Result.failure(error))
+                    return@addSnapshotListener
                 }
 
-        awaitClose {
-            listener.remove()
-        }
+                val user = snapshot?.toObject(User::class.java)
+                if (user != null) {
+                    trySend(Result.success(user))
+                }
+            }
+
+        awaitClose { listener.remove() }
     }
 
-    suspend fun getOrCreateUser(
-        firebaseUser: FirebaseUser
-    ): Result<User> {
+    // F01/F02: After creating/fetching user, resolve role from /admins/{uid}
+    suspend fun getOrCreateUser(firebaseUser: FirebaseUser): Result<User> {
 
         return try {
 
-            val docRef =
-                usersCollection.document(firebaseUser.uid)
+            val docRef = usersCollection.document(firebaseUser.uid)
+            val snapshot = docRef.get().await()
 
-            val snapshot =
-                docRef.get().await()
+            // Resolve role from /admins/{uid} — this is the website's source of truth
+            val role = resolveRole(firebaseUser.uid)
 
             if (snapshot.exists()) {
 
-                docRef.update(
-                    "lastSeen",
-                    Timestamp.now()
-                ).await()
+                // Upsert role and lastSeen — same as website's setDoc merge: true pattern
+                docRef.update(mapOf(
+                    "lastSeen" to Timestamp.now(),
+                    "role"     to role,
+                    "isOnline" to true
+                )).await()
 
-                val user =
-                    snapshot.toObject(User::class.java)
-                        ?: createUserFromFirebase(firebaseUser)
-
-                Result.success(user)
+                val base = snapshot.toObject(User::class.java) ?: createUserFromFirebase(firebaseUser, role)
+                Result.success(base.copy(role = role))
 
             } else {
 
-                val newUser =
-                    createUserFromFirebase(firebaseUser)
-
-                docRef.set(
-                    newUser.toMap()
-                ).await()
-
+                val newUser = createUserFromFirebase(firebaseUser, role)
+                // F14: website uses setDoc merge:true; we set() with merge for upsert
+                docRef.set(newUser.toMap(), SetOptions.merge()).await()
                 Result.success(newUser)
             }
 
         } catch (e: Exception) {
-
             Result.failure(e)
         }
     }
 
-    suspend fun getUser(
-        uid: String
-    ): Result<User> {
+    suspend fun getUser(uid: String): Result<User> {
 
         return try {
 
-            val snapshot =
-                usersCollection.document(uid)
-                    .get()
-                    .await()
+            val snapshot = usersCollection.document(uid).get().await()
 
             if (!snapshot.exists()) {
                 AppLogger.w("UserRepository", "User not found for uid=$uid")
@@ -122,7 +101,8 @@ class UserRepository @Inject constructor(
                     (data[key] as? String)?.takeIf { it.isNotBlank() }
                 } ?: ""
 
-            val photoUrl = listOf("photoUrl", "avatar", "profilePicture", "photo")
+            // F07: website writes "photoURL" (capital URL) — check that first
+            val photoUrl = listOf("photoURL", "photoUrl", "avatar", "profilePicture", "photo")
                 .firstNotNullOfOrNull { key ->
                     (data[key] as? String)?.takeIf { it.isNotBlank() }
                 } ?: ""
@@ -135,91 +115,66 @@ class UserRepository @Inject constructor(
             }
 
             val base = snapshot.toObject(User::class.java) ?: User(uid = uid)
-
-            val user = base.copy(
-                uid = uid,
-                name = name,
-                photoUrl = photoUrl
-            )
+            val user = base.copy(uid = uid, name = name, photoURL = photoUrl)
 
             Result.success(user)
 
         } catch (e: Exception) {
 
-            AppLogger.error(
-                "UserRepository",
-                "getUser failed for uid=$uid: ${e.message}"
-            )
-
+            AppLogger.error("UserRepository", "getUser failed for uid=$uid: ${e.message}")
             Result.failure(e)
         }
     }
 
-    suspend fun updateLastSeen(
-        uid: String
-    ) {
-
+    suspend fun updateLastSeen(uid: String) {
         try {
-
             usersCollection.document(uid)
-                .update(
-                    "lastSeen",
-                    Timestamp.now()
-                )
+                .update(mapOf(
+                    "lastSeen" to Timestamp.now(),
+                    "isOnline" to false
+                ))
                 .await()
-
         } catch (_: Exception) {
         }
     }
 
-    private fun createUserFromFirebase(
-        firebaseUser: FirebaseUser
-    ): User {
+    // F01: Checks /admins/{uid} and returns the role string matching website's schema
+    private suspend fun resolveRole(uid: String): String {
+        return try {
+            val snap = adminsCollection.document(uid).get().await()
+            if (!snap.exists()) return "student"
+            when (snap.getString("role")) {
+                "owner" -> "owner"
+                "admin" -> "admin"
+                else    -> "student"
+            }
+        } catch (_: Exception) {
+            "student"
+        }
+    }
+
+    private fun createUserFromFirebase(firebaseUser: FirebaseUser, role: String = "student"): User {
+
+        // F21: website stores lastActive as date string
+        val todayString = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         return User(
-
-            uid = firebaseUser.uid,
-
-            name =
-                firebaseUser.displayName ?: "",
-
-            email =
-                firebaseUser.email ?: "",
-
-            photoUrl =
-                firebaseUser.photoUrl?.toString() ?: "",
-
-            xp = 0L,
-
-            streak = 0,
-
-            level = 1,
-
-            quizzesCompleted = 0,
-
-            resourcesOpened = 0,
-
-            isPremium = false,
-
-            premiumType = "free",
-
-            premiumStart = null,
-
-            premiumEnd = null,
-
-            premiumActive = false,
-
-            membershipBadge = "",
-
-            joinedAt = Timestamp.now(),
-
-            lastSeen = Timestamp.now(),
-
-            lastActive = null,
-
-            isAdmin = false,
-
-            banned = false
+            uid          = firebaseUser.uid,
+            name         = firebaseUser.displayName ?: "",
+            email        = firebaseUser.email ?: "",
+            // F07: use correct field name matching website
+            photoURL     = firebaseUser.photoUrl?.toString() ?: "",
+            role         = role,
+            xp           = 0L,
+            streak       = 0,
+            level        = 1,
+            totalQuizzes = 0,
+            lecturesWatched = 0,
+            pdfsRead     = 0,
+            isPremium    = false,
+            createdAt    = Timestamp.now(),
+            lastSeen     = Timestamp.now(),
+            lastActive   = todayString
         )
     }
 }

@@ -25,29 +25,43 @@ class AdminRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) {
-    private val usersCol = firestore.collection("users")
+    private val usersCol  = firestore.collection("users")
+    // F01: admin detection uses /admins/{uid} — the website's source of truth
+    private val adminsCol = firestore.collection("admins")
 
-    // ── Admin check ──────────────────────────────────────────────────────────────
+    // ── Admin check — reads /admins/{uid} as the website does ────────────────────
 
     suspend fun isCurrentUserAdmin(): Boolean {
         val uid = auth.currentUser?.uid ?: return false
         return runCatching {
-            val snap = usersCol.document(uid).get().await()
-            snap.getBoolean("isAdmin") ?: false
+            val snap = adminsCol.document(uid).get().await()
+            snap.exists() && snap.getString("role") in listOf("owner", "admin")
+        }.getOrDefault(false)
+    }
+
+    suspend fun isCurrentUserOwner(): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        return runCatching {
+            val snap = adminsCol.document(uid).get().await()
+            snap.exists() && snap.getString("role") == "owner"
         }.getOrDefault(false)
     }
 
     fun observeAdminStatus(uid: String): Flow<Boolean> = callbackFlow {
-        val listener = usersCol.document(uid).addSnapshotListener { snap, _ ->
-            trySend(snap?.getBoolean("isAdmin") ?: false)
+        // F01: observe /admins/{uid} directly, same as website AuthContext
+        val listener = adminsCol.document(uid).addSnapshotListener { snap, _ ->
+            val isAdmin = snap?.exists() == true &&
+                snap.getString("role") in listOf("owner", "admin")
+            trySend(isAdmin)
         }
         awaitClose { listener.remove() }
     }
 
     // ── Users management ─────────────────────────────────────────────────────────
 
+    // F14: website orders by "createdAt" (was "joinedAt")
     fun observeAllUsers(limit: Long = 50): Flow<Result<List<User>>> = callbackFlow {
-        val query = usersCol.orderBy("joinedAt", Query.Direction.DESCENDING).limit(limit)
+        val query = usersCol.orderBy("createdAt", Query.Direction.DESCENDING).limit(limit)
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val users = snap?.documents?.mapNotNull { doc ->
@@ -78,42 +92,52 @@ class AdminRepository @Inject constructor(
 
     suspend fun getAdminStats(): Result<AdminStats> = runCatching {
         val usersSnap = usersCol.get().await()
-        val allUsers = usersSnap.documents.mapNotNull { it.toObject(User::class.java) }
-        val totalUsers = allUsers.size
-        val premiumUsers = allUsers.count { it.isPremium }
+        val allUsers  = usersSnap.documents.mapNotNull { it.toObject(User::class.java) }
+        val totalUsers    = allUsers.size
+        val premiumCount  = allUsers.count { it.isPremium }
 
         val pendingSnap = firestore.collection("premiumRequests")
-            .whereEqualTo("status", "PENDING").get().await()
+            .whereEqualTo("status", "pending").get().await()
         val pendingRequests = pendingSnap.size()
 
-        val resourcesSnap = firestore.collection("resources").get().await()
-        val totalResources = resourcesSnap.size()
+        // F: website uses "files" + "lectures" — not "resources"
+        val filesSnap    = firestore.collection("files").get().await()
+        val lecturesSnap = firestore.collection("lectures").get().await()
+        val totalResources = filesSnap.size() + lecturesSnap.size()
 
         val announcementsSnap = firestore.collection("announcements").get().await()
         val totalAnnouncements = announcementsSnap.size()
 
-        val postsSnap = firestore.collection("communityPosts").get().await()
+        // F: website uses "communityMessages" — not "communityPosts"
+        val postsSnap  = firestore.collection("communityMessages").get().await()
         val totalPosts = postsSnap.size()
 
         AdminStats(
-            totalUsers = totalUsers,
-            premiumUsers = premiumUsers,
-            pendingRequests = pendingRequests,
-            totalResources = totalResources,
-            totalAnnouncements = totalAnnouncements,
-            totalCommunityPosts = totalPosts
+            totalUsers           = totalUsers,
+            premiumUsers         = premiumCount,
+            pendingRequests      = pendingRequests,
+            totalResources       = totalResources,
+            totalAnnouncements   = totalAnnouncements,
+            totalCommunityPosts  = totalPosts
         )
     }
 
     // ── User actions ─────────────────────────────────────────────────────────────
 
-    suspend fun setAdminStatus(uid: String, isAdmin: Boolean): Result<Unit> = runCatching {
-        usersCol.document(uid).update("isAdmin", isAdmin).await()
+    // F02: admin status is granted by writing to /admins collection (same as website)
+    suspend fun grantAdminRole(uid: String, role: String = "admin"): Result<Unit> = runCatching {
+        adminsCol.document(uid).set(mapOf("role" to role)).await()
+        usersCol.document(uid).update("role", role).await()
+    }
+
+    suspend fun revokeAdminRole(uid: String): Result<Unit> = runCatching {
+        adminsCol.document(uid).delete().await()
+        usersCol.document(uid).update("role", "student").await()
     }
 
     suspend fun banUser(uid: String): Result<Unit> = runCatching {
         usersCol.document(uid).update(mapOf(
-            "banned" to true,
+            "banned"   to true,
             "bannedAt" to com.google.firebase.Timestamp.now()
         )).await()
     }
@@ -123,7 +147,7 @@ class AdminRepository @Inject constructor(
     }
 
     fun observeRecentUsers(limit: Long = 10): Flow<Result<List<User>>> = callbackFlow {
-        val query = usersCol.orderBy("joinedAt", Query.Direction.DESCENDING).limit(limit)
+        val query = usersCol.orderBy("createdAt", Query.Direction.DESCENDING).limit(limit)
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val users = snap?.documents?.mapNotNull { doc ->

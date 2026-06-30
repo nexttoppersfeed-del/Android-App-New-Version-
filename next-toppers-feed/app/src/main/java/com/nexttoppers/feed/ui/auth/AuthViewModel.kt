@@ -33,6 +33,7 @@ class AuthViewModel @Inject constructor(
             _uiState.value = AuthUiState.Loading
             when (val result = authRepository.signInWithGoogle(context)) {
                 is AuthResult.Success -> {
+                    // F01: getOrCreateUser now also resolves role from /admins/{uid}
                     userRepository.getOrCreateUser(result.user)
                     _uiState.value = AuthUiState.Success
                 }

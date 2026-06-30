@@ -29,12 +29,19 @@ class AnnouncementsRepository @Inject constructor(
                     trySend(Result.failure(error))
                     return@addSnapshotListener
                 }
-                val items = snapshot?.documents?.map { doc ->
-                    val a = doc.toObject(Announcement::class.java) ?: Announcement()
-                    a.copy(id = doc.id)
+                val items = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        val data = doc.data ?: return@mapNotNull null
+                        // F08: website writes "content" — read it with "message" as fallback
+                        val body = data["content"] as? String
+                            ?: data["message"] as? String ?: ""
+                        val a = doc.toObject(Announcement::class.java) ?: Announcement()
+                        a.copy(id = doc.id, content = body)
+                    } catch (_: Exception) { null }
                 } ?: emptyList()
                 val sorted = items.sortedWith(
-                    compareByDescending<Announcement> { it.important }
+                    compareByDescending<Announcement> { it.important || it.pinned }
+                        .thenByDescending { it.priority }
                         .thenByDescending { it.createdAt }
                 )
                 trySend(Result.success(sorted))
@@ -44,7 +51,10 @@ class AnnouncementsRepository @Inject constructor(
 
     suspend fun getAnnouncementById(id: String): Result<Announcement?> = runCatching {
         val doc = collection.document(id).get().await()
-        doc.toObject(Announcement::class.java)?.copy(id = doc.id)
+        if (!doc.exists()) return@runCatching null
+        val data = doc.data ?: return@runCatching null
+        val body = data["content"] as? String ?: data["message"] as? String ?: ""
+        doc.toObject(Announcement::class.java)?.copy(id = doc.id, content = body)
     }
 
     suspend fun refreshAnnouncements(): Result<List<Announcement>> {
@@ -54,12 +64,16 @@ class AnnouncementsRepository @Inject constructor(
                 .limit(30)
                 .get()
                 .await()
-            val items = snapshot.documents.map { doc ->
-                val a = doc.toObject(Announcement::class.java) ?: Announcement()
-                a.copy(id = doc.id)
+            val items = snapshot.documents.mapNotNull { doc ->
+                try {
+                    val data = doc.data ?: return@mapNotNull null
+                    val body = data["content"] as? String ?: data["message"] as? String ?: ""
+                    doc.toObject(Announcement::class.java)?.copy(id = doc.id, content = body)
+                } catch (_: Exception) { null }
             }
             val sorted = items.sortedWith(
-                compareByDescending<Announcement> { it.important }
+                compareByDescending<Announcement> { it.important || it.pinned }
+                    .thenByDescending { it.priority }
                     .thenByDescending { it.createdAt }
             )
             Result.success(sorted)
@@ -68,7 +82,7 @@ class AnnouncementsRepository @Inject constructor(
         }
     }
 
-    // ── Admin: create ─────────────────────────────────────────────────────────────
+    // ── Admin: create — F08: uses "content" to match website schema ─────────────
 
     suspend fun createAnnouncement(
         title: String,
@@ -77,20 +91,23 @@ class AnnouncementsRepository @Inject constructor(
         pinned: Boolean = false,
         important: Boolean = false,
         priority: Int = 0,
-        targetAudience: String = "all"
+        targetAudience: String = "all",
+        type: String = "update"
     ): Result<String> = runCatching {
-        val uid = auth.currentUser?.uid ?: "admin"
         val id = UUID.randomUUID().toString()
+        // F08: write "content" to match website's announcements schema
         val announcement = mapOf(
             "id"             to id,
             "title"          to title.trim(),
-            "message"        to message.trim(),
+            "content"        to message.trim(),
+            "type"           to type,
             "imageUrl"       to imageUrl.trim(),
+            "externalUrl"    to "",
+            "priority"       to priority,
             "pinned"         to pinned,
             "important"      to (important || pinned),
-            "priority"       to priority,
             "targetAudience" to targetAudience,
-            "author"         to uid,
+            "author"         to (auth.currentUser?.uid ?: "admin"),
             "createdAt"      to Timestamp.now()
         )
         collection.document(id).set(announcement).await()
@@ -106,11 +123,13 @@ class AnnouncementsRepository @Inject constructor(
         imageUrl: String = "",
         pinned: Boolean = false,
         important: Boolean = false,
-        priority: Int = 0
+        priority: Int = 0,
+        type: String = "update"
     ): Result<Unit> = runCatching {
         collection.document(id).update(mapOf(
             "title"     to title.trim(),
-            "message"   to message.trim(),
+            "content"   to message.trim(),
+            "type"      to type,
             "imageUrl"  to imageUrl.trim(),
             "pinned"    to pinned,
             "important" to (important || pinned),

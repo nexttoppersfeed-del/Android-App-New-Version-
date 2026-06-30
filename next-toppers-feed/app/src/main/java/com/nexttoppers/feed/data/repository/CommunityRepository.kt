@@ -152,16 +152,22 @@ class CommunityRepository @Inject constructor(
         val id  = UUID.randomUUID().toString()
         val now = Timestamp.now()
         postsCol.document(id).set(mapOf(
+            // F19: write website field names ("senderId","senderName","senderPhoto","message","createdAt")
+            // Also write legacy names so old app versions can still read the doc
+            "senderId"    to post.userId,
+            "senderName"  to post.username,
+            "senderPhoto" to post.userPhoto,
+            "message"     to post.content,
+            // Legacy names kept for backwards compat reads from older app installs
             "userId"      to post.userId,
             "username"    to post.username,
             "userPhoto"   to post.userPhoto,
+            "text"        to post.content,
             "type"        to post.type,
             "title"       to post.title,
-            "text"        to post.content,
             "subject"     to post.subject,
             "likes"       to post.likes,
             "replyCount"  to post.commentsCount,
-            "timestamp"   to now,
             "createdAt"   to now,
             "pinned"      to post.pinned,
             "hot"         to post.hot,
