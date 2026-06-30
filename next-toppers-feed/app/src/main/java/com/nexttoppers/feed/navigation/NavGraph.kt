@@ -3,6 +3,8 @@ package com.nexttoppers.feed.navigation
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,8 +18,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.AutoStories
@@ -39,16 +43,15 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -56,8 +59,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -73,7 +74,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nexttoppers.feed.ui.activity.ActivityFeedScreen
+import com.nexttoppers.feed.ui.admin.AdminAnnouncementsScreen
 import com.nexttoppers.feed.ui.admin.AdminDashboardScreen
+import com.nexttoppers.feed.ui.admin.AdminQuizManagementScreen
+import com.nexttoppers.feed.ui.admin.AnalyticsScreen
+import com.nexttoppers.feed.ui.admin.ModerationScreen
+import com.nexttoppers.feed.ui.admin.PremiumRequestsScreen
+import com.nexttoppers.feed.ui.admin.ResourceManagementScreen
 import com.nexttoppers.feed.ui.announcements.AnnouncementDetailScreen
 import com.nexttoppers.feed.ui.auth.LoginScreen
 import com.nexttoppers.feed.ui.chats.ChatListViewModel
@@ -94,7 +101,6 @@ import com.nexttoppers.feed.ui.premium.PremiumScreen
 import com.nexttoppers.feed.ui.profile.ProfileScreen
 import com.nexttoppers.feed.ui.quiz.QuizHomeScreen
 import com.nexttoppers.feed.ui.quiz.QuizPlayerScreen
-import com.nexttoppers.feed.ui.quiz.QuizPlayerViewModel
 import com.nexttoppers.feed.ui.quiz.QuizResultScreen
 import com.nexttoppers.feed.ui.resources.ResourceDetailScreen
 import com.nexttoppers.feed.ui.resources.ResourcesScreen
@@ -102,22 +108,12 @@ import com.nexttoppers.feed.ui.resources.SubjectResourcesScreen
 import com.nexttoppers.feed.ui.settings.SettingsScreen
 import com.nexttoppers.feed.ui.splash.SplashScreen
 import com.nexttoppers.feed.ui.tests.TestsScreen
-import com.nexttoppers.feed.ui.theme.AccentCyan
-import com.nexttoppers.feed.ui.theme.AccentEmerald
-import com.nexttoppers.feed.ui.theme.BackgroundBlack
-import com.nexttoppers.feed.ui.theme.NeonGreen
-import com.nexttoppers.feed.ui.theme.SurfaceCard
-import com.nexttoppers.feed.ui.theme.SurfaceDark
-import com.nexttoppers.feed.ui.theme.TextMuted
-import com.nexttoppers.feed.ui.theme.TextPrimary
-import com.nexttoppers.feed.ui.theme.TextSecondary
 import com.nexttoppers.feed.util.AppLogger
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.net.URLEncoder
 
 object Routes {
-
     const val SPLASH = "splash"
     const val LOGIN  = "login"
 
@@ -127,17 +123,23 @@ object Routes {
     const val CHATS       = "chats"
     const val PROFILE     = "profile"
 
-    const val SETTINGS    = "settings"
-    const val DOWNLOADS   = "downloads"
-    const val NOTIFICATIONS = "notifications"
-    const val PREMIUM     = "premium"
-    const val ADMIN       = "admin"
-    const val ABOUT       = "about"
-    const val LEGAL_PRIVACY = "legal/privacy"
-    const val LEGAL_TERMS   = "legal/terms"
-    const val REPORT_ISSUE  = "report_issue"
-    const val FEEDBACK      = "feedback"
-    const val ACTIVITY_FEED = "activity_feed"
+    const val SETTINGS           = "settings"
+    const val DOWNLOADS          = "downloads"
+    const val NOTIFICATIONS      = "notifications"
+    const val PREMIUM            = "premium"
+    const val ADMIN              = "admin"
+    const val ADMIN_PREMIUM_REQUESTS = "admin/premium_requests"
+    const val ADMIN_RESOURCES    = "admin/resources"
+    const val ADMIN_ANNOUNCEMENTS = "admin/announcements"
+    const val ADMIN_MODERATION   = "admin/moderation"
+    const val ADMIN_ANALYTICS    = "admin/analytics"
+    const val ADMIN_QUIZ         = "admin/quiz"
+    const val ABOUT              = "about"
+    const val LEGAL_PRIVACY      = "legal/privacy"
+    const val LEGAL_TERMS        = "legal/terms"
+    const val REPORT_ISSUE       = "report_issue"
+    const val FEEDBACK           = "feedback"
+    const val ACTIVITY_FEED      = "activity_feed"
 
     const val SUBJECT_RESOURCES = "resources/subject/{subject}"
     const val RESOURCE_DETAIL   = "resources/detail/{resourceId}"
@@ -158,10 +160,8 @@ object Routes {
     const val ANNOUNCEMENT_DETAIL = "announcement/{announcementId}"
 
     fun chat(chatId: String) = "chat/$chatId"
-
     fun quizPlayer(quizId: String) = "quiz_player/$quizId"
-
-    fun announcementDetail(announcementId: String) = "announcement/$announcementId"
+    fun announcementDetail(id: String) = "announcement/$id"
 
     fun lecturePlayer(url: String, title: String): String {
         val encodedUrl   = URLEncoder.encode(url,   "UTF-8")
@@ -170,7 +170,6 @@ object Routes {
     }
 
     fun subjectResources(subject: String) = "resources/subject/$subject"
-
     fun resourceDetail(id: String) = "resources/detail/$id"
 
     fun pdfViewer(
@@ -212,16 +211,14 @@ fun NavController.navigateSafe(route: String) {
 
 @Composable
 fun NtfNavGraph() {
-
     val rootNavController = rememberNavController()
 
     NavHost(
-        navController   = rootNavController,
+        navController    = rootNavController,
         startDestination = Routes.SPLASH,
-        enterTransition = { fadeIn(tween(300)) },
-        exitTransition  = { fadeOut(tween(200)) }
+        enterTransition  = { fadeIn(tween(300)) },
+        exitTransition   = { fadeOut(tween(200)) }
     ) {
-
         composable(Routes.SPLASH) {
             SplashScreen(
                 onNavigateToHome = {
@@ -265,7 +262,6 @@ fun NtfNavGraph() {
 
 @Composable
 private fun MainAppShell(onSignedOut: () -> Unit) {
-
     val navController = rememberNavController()
     val navBackStack  by navController.currentBackStackEntryAsState()
     val currentRoute  = navBackStack?.destination?.route
@@ -278,9 +274,9 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
     val scope       = rememberCoroutineScope()
 
     ModalNavigationDrawer(
-        drawerState = drawerState,
+        drawerState     = drawerState,
         gesturesEnabled = drawerState.isOpen || showBottomBar,
-        drawerContent = {
+        drawerContent   = {
             NtfNavDrawer(
                 onNavigate = { route ->
                     scope.launch { drawerState.close() }
@@ -293,465 +289,396 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
             )
         }
     ) {
-    Scaffold(
-        containerColor = BackgroundBlack,
-        bottomBar = {
-            if (showBottomBar) {
-                NavigationBar(containerColor = SurfaceDark, tonalElevation = 0.dp) {
-                    val currentDest = navBackStack?.destination
-                    bottomNavItems.forEach { item ->
-                        val selected = currentDest?.hierarchy?.any { it.route == item.route } == true
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick  = {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState    = true
-                                }
-                            },
-                            icon = {
-                                if (item.route == Routes.CHATS && totalUnread > 0) {
-                                    BadgedBox(badge = {
-                                        Badge {
-                                            Text(if (totalUnread > 9) "9+" else totalUnread.toString())
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                if (showBottomBar) {
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 3.dp
+                    ) {
+                        val currentDest = navBackStack?.destination
+                        bottomNavItems.forEach { item ->
+                            val selected = currentDest?.hierarchy?.any { it.route == item.route } == true
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
                                         }
-                                    }) {
-                                        Icon(imageVector = item.icon, contentDescription = item.label)
+                                        launchSingleTop = true
+                                        restoreState    = true
                                     }
-                                } else {
-                                    Icon(imageVector = item.icon, contentDescription = item.label)
-                                }
-                            },
-                            label = {
-                                Text(text = item.label, fontSize = 10.sp)
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor   = NeonGreen,
-                                selectedTextColor   = NeonGreen,
-                                unselectedIconColor = TextMuted,
-                                unselectedTextColor = TextMuted,
-                                indicatorColor      = NeonGreen.copy(alpha = 0.13f)
+                                },
+                                icon = {
+                                    if (item.route == Routes.CHATS && totalUnread > 0) {
+                                        BadgedBox(badge = {
+                                            Badge { Text(if (totalUnread > 9) "9+" else totalUnread.toString()) }
+                                        }) {
+                                            Icon(item.icon, item.label)
+                                        }
+                                    } else {
+                                        Icon(item.icon, item.label)
+                                    }
+                                },
+                                label = { Text(item.label, fontSize = 10.sp) }
                             )
-                        )
-                    }
-                }
-            }
-        }
-    ) { innerPadding ->
-
-        NavHost(
-            navController    = navController,
-            startDestination = Routes.HOME,
-            modifier         = Modifier.padding(innerPadding),
-            enterTransition  = { fadeIn(tween(260)) },
-            exitTransition   = { fadeOut(tween(200)) }
-        ) {
-
-            // ── Home ────────────────────────────────────────────────────────────
-            composable(Routes.HOME) {
-                HomeScreen(
-                    onNavigateToNotes    = { navController.navigateSafe(Routes.RESOURCES) },
-                    onNavigateToLectures = { navController.navigateSafe(Routes.RESOURCES) },
-                    onNavigateToTests    = { navController.navigateSafe(Routes.TESTS) },
-                    onNavigateToChats    = { navController.navigateSafe(Routes.CHATS) },
-                    onNavigateToLeaderboard = { navController.navigateSafe(Routes.LEADERBOARD) },
-                    onNavigateToPremium  = { navController.navigateSafe(Routes.PREMIUM) },
-                    onNavigateToSettings = { navController.navigateSafe(Routes.SETTINGS) },
-                    onNavigateToNotifications = { navController.navigateSafe(Routes.NOTIFICATIONS) },
-                    onNavigateToAnnouncementDetail = { id ->
-                        navController.navigateSafe(Routes.announcementDetail(id))
-                    },
-                    onNavigateToActivityFeed = { navController.navigateSafe(Routes.ACTIVITY_FEED) },
-                    onNavigateToSubject = { subject ->
-                        navController.navigateSafe(Routes.subjectResources(subject))
-                    },
-                    onOpenDrawer = { scope.launch { drawerState.open() } }
-                )
-            }
-
-            // ── Resources ───────────────────────────────────────────────────────
-            composable(Routes.RESOURCES) {
-                ResourcesScreen(
-                    onNavigateToSubject = { subject ->
-                        navController.navigateSafe(Routes.subjectResources(subject))
-                    },
-                    onNavigateToDetail = { id ->
-                        navController.navigateSafe(Routes.resourceDetail(id))
-                    }
-                )
-            }
-
-            // ── Leaderboard ─────────────────────────────────────────────────────
-            composable(Routes.LEADERBOARD) {
-                LeaderboardScreen()
-            }
-
-            // ── Chats ───────────────────────────────────────────────────────────
-            composable(Routes.CHATS) {
-                ChatsScreen(
-                    onNavigateToChat = { chatId ->
-                        navController.navigate(Routes.chat(chatId))
-                    }
-                )
-            }
-
-            // ── Single chat ─────────────────────────────────────────────────────
-            composable(
-                route = Routes.CHAT,
-                arguments = listOf(
-                    navArgument("chatId") {
-                        type         = NavType.StringType
-                        defaultValue = ""
-                    }
-                )
-            ) {
-                ChatScreen(onBack = { navController.popBackStack() })
-            }
-
-            // ── Profile ─────────────────────────────────────────────────────────
-            composable(Routes.PROFILE) {
-                ProfileScreen(
-                    onSignedOut = onSignedOut,
-                    onNavigateToSettings = { navController.navigateSafe(Routes.SETTINGS) },
-                    onNavigateToAdmin    = { navController.navigateSafe(Routes.ADMIN) }
-                )
-            }
-
-            // ── Settings ────────────────────────────────────────────────────────
-            composable(Routes.SETTINGS) {
-                SettingsScreen(
-                    onBack    = { navController.popBackStack() },
-                    onSignOut = {
-                        navController.popBackStack()
-                        onSignedOut()
-                    },
-                    onNavigateToPrivacyPolicy = { navController.navigateSafe(Routes.LEGAL_PRIVACY) },
-                    onNavigateToTerms         = { navController.navigateSafe(Routes.LEGAL_TERMS) },
-                    onNavigateToAbout         = { navController.navigateSafe(Routes.ABOUT) },
-                    onNavigateToReportIssue   = { navController.navigateSafe(Routes.REPORT_ISSUE) },
-                    onNavigateToFeedback      = { navController.navigateSafe(Routes.FEEDBACK) },
-                    onNavigateToDownloads     = { navController.navigateSafe(Routes.DOWNLOADS) }
-                )
-            }
-
-            // ── Downloads ───────────────────────────────────────────────────────
-            composable(Routes.DOWNLOADS) {
-                DownloadsScreen(
-                    onOpenPdf = { localPath, resourceId, title ->
-                        navController.navigateSafe(
-                            Routes.pdfViewer(resourceId, title, localPath)
-                        )
-                    },
-                    onNavigateToDetail = { id ->
-                        navController.navigateSafe(Routes.resourceDetail(id))
-                    }
-                )
-            }
-
-            // ── Notifications ───────────────────────────────────────────────────
-            composable(Routes.NOTIFICATIONS) {
-                NotificationCenterScreen(
-                    onBack        = { navController.popBackStack() },
-                    onNavigateTo  = { route -> navController.navigateSafe(route) }
-                )
-            }
-
-            // ── Premium ─────────────────────────────────────────────────────────
-            composable(Routes.PREMIUM) {
-                PremiumScreen(
-                    onBack           = { navController.popBackStack() },
-                    onUpgradeSuccess = { navController.popBackStack() }
-                )
-            }
-
-            // ── Admin ───────────────────────────────────────────────────────────
-            composable(Routes.ADMIN) {
-                AdminDashboardScreen(
-                    onNavigateToPremiumRequests = {},
-                    onNavigateToResources       = {},
-                    onNavigateToAnnouncements   = {},
-                    onNavigateToModeration      = {},
-                    onNavigateToAnalytics       = {},
-                    onNavigateToQuizManagement  = {}
-                )
-            }
-
-            // ── About ───────────────────────────────────────────────────────────
-            composable(Routes.ABOUT) {
-                AboutScreen(onBack = { navController.popBackStack() })
-            }
-
-            // ── Privacy policy ──────────────────────────────────────────────────
-            composable(Routes.LEGAL_PRIVACY) {
-                LegalScreen(
-                    type   = LegalType.PRIVACY_POLICY,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            // ── Terms of service ────────────────────────────────────────────────
-            composable(Routes.LEGAL_TERMS) {
-                LegalScreen(
-                    type   = LegalType.TERMS_OF_SERVICE,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            // ── Report issue ────────────────────────────────────────────────────
-            composable(Routes.REPORT_ISSUE) {
-                ReportIssueScreen(onBack = { navController.popBackStack() })
-            }
-
-            // ── Feedback ────────────────────────────────────────────────────────
-            composable(Routes.FEEDBACK) {
-                AppFeedbackScreen(onBack = { navController.popBackStack() })
-            }
-
-            // ── Activity feed ───────────────────────────────────────────────────
-            composable(Routes.ACTIVITY_FEED) {
-                ActivityFeedScreen(onBack = { navController.popBackStack() })
-            }
-
-            // ── Announcement detail ─────────────────────────────────────────────
-            composable(
-                route = Routes.ANNOUNCEMENT_DETAIL,
-                arguments = listOf(
-                    navArgument("announcementId") {
-                        type = NavType.StringType
-                        defaultValue = ""
-                    }
-                )
-            ) {
-                AnnouncementDetailScreen(onBack = { navController.popBackStack() })
-            }
-
-            // ── Subject resources ───────────────────────────────────────────────
-            composable(
-                route = Routes.SUBJECT_RESOURCES,
-                arguments = listOf(navArgument("subject") { type = NavType.StringType })
-            ) {
-                SubjectResourcesScreen(
-                    onBack             = { navController.popBackStack() },
-                    onNavigateToDetail = { id -> navController.navigateSafe(Routes.resourceDetail(id)) }
-                )
-            }
-
-            // ── Resource detail ─────────────────────────────────────────────────
-            composable(
-                route = Routes.RESOURCE_DETAIL,
-                arguments = listOf(navArgument("resourceId") { type = NavType.StringType })
-            ) {
-                ResourceDetailScreen(
-                    onBack      = { navController.popBackStack() },
-                    onOpenPdf   = { localPath, resourceId, title, fileUrl ->
-                        navController.navigateSafe(Routes.pdfViewer(resourceId, title, localPath, fileUrl))
-                    },
-                    onPlayLecture = { url, title ->
-                        navController.navigateSafe(Routes.lecturePlayer(url, title))
-                    }
-                )
-            }
-
-            // ── PDF viewer ──────────────────────────────────────────────────────
-            composable(
-                route = Routes.PDF_VIEWER,
-                arguments = listOf(
-                    navArgument("resourceId") { type = NavType.StringType; defaultValue = "" },
-                    navArgument("title")      { type = NavType.StringType; defaultValue = "" },
-                    navArgument("localPath")  { type = NavType.StringType; defaultValue = "" },
-                    navArgument("fileUrl")    { type = NavType.StringType; defaultValue = "" }
-                )
-            ) {
-                PdfViewerScreen(onBack = { navController.popBackStack() })
-            }
-
-            // ── Lecture player ──────────────────────────────────────────────────
-            composable(
-                route = Routes.LECTURE_PLAYER,
-                arguments = listOf(
-                    navArgument("url")   { type = NavType.StringType; defaultValue = "" },
-                    navArgument("title") { type = NavType.StringType; defaultValue = "Lecture" }
-                )
-            ) {
-                LecturePlayerScreen(onBack = { navController.popBackStack() })
-            }
-
-            // ── Quiz home ───────────────────────────────────────────────────────
-            composable(Routes.QUIZ_HOME) {
-                QuizHomeScreen(
-                    onNavigateToPlayer = { quizId ->
-                        navController.navigate(Routes.quizPlayer(quizId))
-                    }
-                )
-            }
-
-            // ── Quiz player ─────────────────────────────────────────────────────
-            composable(
-                route = Routes.QUIZ_PLAYER,
-                arguments = listOf(
-                    navArgument("quizId") { type = NavType.StringType; defaultValue = "" }
-                )
-            ) { entry ->
-                val playerVm: QuizPlayerViewModel = hiltViewModel(entry)
-                QuizPlayerScreen(
-                    onBack = { navController.popBackStack() },
-                    onNavigateToResult = { _, _, _, _, _, _ ->
-                        navController.navigate(Routes.QUIZ_RESULT)
-                    },
-                    viewModel = playerVm
-                )
-            }
-
-            // ── Quiz result ─────────────────────────────────────────────────────
-            composable(Routes.QUIZ_RESULT) { resultEntry ->
-                val playerEntry = remember(resultEntry) {
-                    try {
-                        navController.getBackStackEntry(Routes.QUIZ_PLAYER)
-                    } catch (_: Exception) {
-                        resultEntry
-                    }
-                }
-                val playerVm: QuizPlayerViewModel = hiltViewModel(playerEntry)
-                QuizResultScreen(
-                    onBack = {
-                        navController.popBackStack(Routes.QUIZ_HOME, inclusive = false)
-                    },
-                    onRetakeQuiz = { quizId ->
-                        navController.navigate(Routes.quizPlayer(quizId)) {
-                            popUpTo(Routes.QUIZ_HOME) { inclusive = false }
                         }
-                    },
-                    playerViewModel = playerVm
-                )
+                    }
+                }
             }
+        ) { innerPadding ->
+            NavHost(
+                navController    = navController,
+                startDestination = Routes.HOME,
+                modifier         = Modifier.padding(innerPadding),
+                enterTransition  = { fadeIn(tween(280)) + slideInHorizontally(tween(280)) { it / 6 } },
+                exitTransition   = { fadeOut(tween(200)) },
+                popEnterTransition  = { fadeIn(tween(280)) },
+                popExitTransition   = { fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it / 6 } }
+            ) {
 
-            // ── Tests ───────────────────────────────────────────────────────────
-            composable(Routes.TESTS) {
-                TestsScreen(onBack = { navController.popBackStack() })
+                // ── Home ────────────────────────────────────────────────────────
+                composable(Routes.HOME) {
+                    HomeScreen(
+                        onNavigateToNotes              = { navController.navigateSafe(Routes.RESOURCES) },
+                        onNavigateToLectures           = { navController.navigateSafe(Routes.RESOURCES) },
+                        onNavigateToTests              = { navController.navigateSafe(Routes.TESTS) },
+                        onNavigateToChats              = { navController.navigateSafe(Routes.CHATS) },
+                        onNavigateToLeaderboard        = { navController.navigateSafe(Routes.LEADERBOARD) },
+                        onNavigateToPremium            = { navController.navigateSafe(Routes.PREMIUM) },
+                        onNavigateToSettings           = { navController.navigateSafe(Routes.SETTINGS) },
+                        onNavigateToNotifications      = { navController.navigateSafe(Routes.NOTIFICATIONS) },
+                        onNavigateToAnnouncementDetail = { id -> navController.navigateSafe(Routes.announcementDetail(id)) },
+                        onNavigateToActivityFeed       = { navController.navigateSafe(Routes.ACTIVITY_FEED) },
+                        onNavigateToSubject            = { subject -> navController.navigateSafe(Routes.subjectResources(subject)) },
+                        onOpenDrawer                   = { scope.launch { drawerState.open() } }
+                    )
+                }
+
+                // ── Resources ───────────────────────────────────────────────────
+                composable(Routes.RESOURCES) {
+                    ResourcesScreen(
+                        onNavigateToSubject = { subject -> navController.navigateSafe(Routes.subjectResources(subject)) },
+                        onNavigateToDetail  = { id -> navController.navigateSafe(Routes.resourceDetail(id)) }
+                    )
+                }
+
+                // ── Subject resources ───────────────────────────────────────────
+                composable(
+                    route = Routes.SUBJECT_RESOURCES,
+                    arguments = listOf(navArgument("subject") { type = NavType.StringType; defaultValue = "" })
+                ) {
+                    SubjectResourcesScreen(
+                        onBack            = { navController.popBackStack() },
+                        onNavigateToDetail = { id -> navController.navigateSafe(Routes.resourceDetail(id)) },
+                        onOpenPdf         = { resourceId, title, localPath, fileUrl ->
+                            navController.navigateSafe(Routes.pdfViewer(resourceId, title, localPath, fileUrl))
+                        },
+                        onOpenLecture     = { url, title ->
+                            navController.navigateSafe(Routes.lecturePlayer(url, title))
+                        }
+                    )
+                }
+
+                // ── Resource detail ─────────────────────────────────────────────
+                composable(
+                    route = Routes.RESOURCE_DETAIL,
+                    arguments = listOf(navArgument("resourceId") { type = NavType.StringType; defaultValue = "" })
+                ) {
+                    ResourceDetailScreen(
+                        onBack        = { navController.popBackStack() },
+                        onOpenPdf     = { resourceId, title, localPath, fileUrl ->
+                            navController.navigateSafe(Routes.pdfViewer(resourceId, title, localPath, fileUrl))
+                        },
+                        onOpenLecture = { url, title ->
+                            navController.navigateSafe(Routes.lecturePlayer(url, title))
+                        }
+                    )
+                }
+
+                // ── Leaderboard ─────────────────────────────────────────────────
+                composable(Routes.LEADERBOARD) { LeaderboardScreen() }
+
+                // ── Chats ───────────────────────────────────────────────────────
+                composable(Routes.CHATS) {
+                    ChatsScreen(onNavigateToChat = { chatId -> navController.navigate(Routes.chat(chatId)) })
+                }
+
+                // ── Single chat ─────────────────────────────────────────────────
+                composable(
+                    route = Routes.CHAT,
+                    arguments = listOf(navArgument("chatId") { type = NavType.StringType; defaultValue = "" })
+                ) {
+                    ChatScreen(onBack = { navController.popBackStack() })
+                }
+
+                // ── Profile ─────────────────────────────────────────────────────
+                composable(Routes.PROFILE) {
+                    ProfileScreen(
+                        onSignedOut          = onSignedOut,
+                        onNavigateToSettings = { navController.navigateSafe(Routes.SETTINGS) },
+                        onNavigateToAdmin    = { navController.navigateSafe(Routes.ADMIN) }
+                    )
+                }
+
+                // ── Settings ────────────────────────────────────────────────────
+                composable(Routes.SETTINGS) {
+                    SettingsScreen(
+                        onBack                    = { navController.popBackStack() },
+                        onSignOut                 = { navController.popBackStack(); onSignedOut() },
+                        onNavigateToPrivacyPolicy = { navController.navigateSafe(Routes.LEGAL_PRIVACY) },
+                        onNavigateToTerms         = { navController.navigateSafe(Routes.LEGAL_TERMS) },
+                        onNavigateToAbout         = { navController.navigateSafe(Routes.ABOUT) },
+                        onNavigateToReportIssue   = { navController.navigateSafe(Routes.REPORT_ISSUE) },
+                        onNavigateToFeedback      = { navController.navigateSafe(Routes.FEEDBACK) },
+                        onNavigateToDownloads     = { navController.navigateSafe(Routes.DOWNLOADS) }
+                    )
+                }
+
+                // ── Downloads ───────────────────────────────────────────────────
+                composable(Routes.DOWNLOADS) {
+                    DownloadsScreen(
+                        onOpenPdf = { localPath, resourceId, title ->
+                            navController.navigateSafe(Routes.pdfViewer(resourceId, title, localPath))
+                        },
+                        onNavigateToDetail = { id -> navController.navigateSafe(Routes.resourceDetail(id)) }
+                    )
+                }
+
+                // ── Notifications ───────────────────────────────────────────────
+                composable(Routes.NOTIFICATIONS) {
+                    NotificationCenterScreen(
+                        onBack       = { navController.popBackStack() },
+                        onNavigateTo = { route -> navController.navigateSafe(route) }
+                    )
+                }
+
+                // ── Premium ─────────────────────────────────────────────────────
+                composable(Routes.PREMIUM) {
+                    PremiumScreen(
+                        onBack           = { navController.popBackStack() },
+                        onUpgradeSuccess = { navController.popBackStack() }
+                    )
+                }
+
+                // ── Admin Dashboard ──────────────────────────────────────────────
+                composable(Routes.ADMIN) {
+                    AdminDashboardScreen(
+                        onBack                      = { navController.popBackStack() },
+                        onNavigateToPremiumRequests = { navController.navigateSafe(Routes.ADMIN_PREMIUM_REQUESTS) },
+                        onNavigateToResources       = { navController.navigateSafe(Routes.ADMIN_RESOURCES) },
+                        onNavigateToAnnouncements   = { navController.navigateSafe(Routes.ADMIN_ANNOUNCEMENTS) },
+                        onNavigateToModeration      = { navController.navigateSafe(Routes.ADMIN_MODERATION) },
+                        onNavigateToAnalytics       = { navController.navigateSafe(Routes.ADMIN_ANALYTICS) },
+                        onNavigateToQuizManagement  = { navController.navigateSafe(Routes.ADMIN_QUIZ) }
+                    )
+                }
+
+                // ── Admin sub-screens ────────────────────────────────────────────
+                composable(Routes.ADMIN_PREMIUM_REQUESTS) {
+                    PremiumRequestsScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.ADMIN_RESOURCES) {
+                    ResourceManagementScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.ADMIN_ANNOUNCEMENTS) {
+                    AdminAnnouncementsScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.ADMIN_MODERATION) {
+                    ModerationScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.ADMIN_ANALYTICS) {
+                    AnalyticsScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.ADMIN_QUIZ) {
+                    AdminQuizManagementScreen(onBack = { navController.popBackStack() })
+                }
+
+                // ── Legal ───────────────────────────────────────────────────────
+                composable(Routes.ABOUT) { AboutScreen(onBack = { navController.popBackStack() }) }
+                composable(Routes.LEGAL_PRIVACY) {
+                    LegalScreen(type = LegalType.PRIVACY_POLICY, onBack = { navController.popBackStack() })
+                }
+                composable(Routes.LEGAL_TERMS) {
+                    LegalScreen(type = LegalType.TERMS_OF_SERVICE, onBack = { navController.popBackStack() })
+                }
+                composable(Routes.REPORT_ISSUE) {
+                    ReportIssueScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.FEEDBACK) {
+                    AppFeedbackScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.ACTIVITY_FEED) {
+                    ActivityFeedScreen(onBack = { navController.popBackStack() })
+                }
+
+                // ── PDF Viewer ──────────────────────────────────────────────────
+                composable(
+                    route = Routes.PDF_VIEWER,
+                    arguments = listOf(
+                        navArgument("resourceId") { type = NavType.StringType; defaultValue = "" },
+                        navArgument("title")      { type = NavType.StringType; defaultValue = "" },
+                        navArgument("localPath")  { type = NavType.StringType; defaultValue = "" },
+                        navArgument("fileUrl")    { type = NavType.StringType; defaultValue = "" }
+                    )
+                ) { backStack ->
+                    val title     = URLDecoder.decode(backStack.arguments?.getString("title")     ?: "", "UTF-8")
+                    val localPath = URLDecoder.decode(backStack.arguments?.getString("localPath") ?: "", "UTF-8")
+                    val fileUrl   = URLDecoder.decode(backStack.arguments?.getString("fileUrl")   ?: "", "UTF-8")
+                    val resourceId = backStack.arguments?.getString("resourceId") ?: ""
+                    PdfViewerScreen(
+                        resourceId = resourceId,
+                        title      = title,
+                        localPath  = localPath,
+                        fileUrl    = fileUrl,
+                        onBack     = { navController.popBackStack() }
+                    )
+                }
+
+                // ── Quiz ────────────────────────────────────────────────────────
+                composable(Routes.QUIZ_HOME) {
+                    QuizHomeScreen(
+                        onNavigateToQuiz   = { quizId -> navController.navigate(Routes.quizPlayer(quizId)) },
+                        onBack             = { navController.popBackStack() }
+                    )
+                }
+                composable(
+                    route = Routes.QUIZ_PLAYER,
+                    arguments = listOf(navArgument("quizId") { type = NavType.StringType })
+                ) {
+                    QuizPlayerScreen(
+                        onQuizComplete = { navController.navigate(Routes.QUIZ_RESULT) { launchSingleTop = true } },
+                        onBack         = { navController.popBackStack() }
+                    )
+                }
+                composable(Routes.QUIZ_RESULT) {
+                    QuizResultScreen(onBack = {
+                        navController.popBackStack(Routes.QUIZ_HOME, inclusive = false)
+                    })
+                }
+
+                // ── Tests ────────────────────────────────────────────────────────
+                composable(Routes.TESTS) {
+                    TestsScreen(onBack = { navController.popBackStack() })
+                }
+
+                // ── Lecture Player ───────────────────────────────────────────────
+                composable(
+                    route = Routes.LECTURE_PLAYER,
+                    arguments = listOf(
+                        navArgument("url")   { type = NavType.StringType; defaultValue = "" },
+                        navArgument("title") { type = NavType.StringType; defaultValue = "" }
+                    )
+                ) { backStack ->
+                    val url   = URLDecoder.decode(backStack.arguments?.getString("url")   ?: "", "UTF-8")
+                    val title = URLDecoder.decode(backStack.arguments?.getString("title") ?: "", "UTF-8")
+                    LecturePlayerScreen(
+                        url   = url,
+                        title = title,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+
+                // ── Announcement detail ──────────────────────────────────────────
+                composable(
+                    route = Routes.ANNOUNCEMENT_DETAIL,
+                    arguments = listOf(navArgument("announcementId") { type = NavType.StringType; defaultValue = "" })
+                ) {
+                    AnnouncementDetailScreen(onBack = { navController.popBackStack() })
+                }
             }
         }
     }
-    } // ModalNavigationDrawer
 }
 
-// ── NtfNavDrawer ──────────────────────────────────────────────────────────────
-
+// ── Navigation Drawer ──────────────────────────────────────────────────────────
 @Composable
 private fun NtfNavDrawer(
     onNavigate: (String) -> Unit,
     onSignOut: () -> Unit
 ) {
     ModalDrawerSheet(
-        drawerContainerColor = SurfaceCard,
-        modifier = Modifier
-            .fillMaxHeight()
-            .width(300.dp)
+        drawerContainerColor = MaterialTheme.colorScheme.surface
     ) {
-        // Header
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(AccentCyan.copy(0.12f), Color.Transparent)))
-                .padding(horizontal = 24.dp, vertical = 28.dp)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Brand header
+            Row(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
-                        .background(Brush.linearGradient(listOf(AccentCyan, AccentEmerald)), CircleShape),
+                        .size(40.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("NT", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                    Text("NT", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text("Next Toppers", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = TextPrimary)
-                    Text("Feed", fontSize = 12.sp, color = AccentCyan)
+                    Text("Next Toppers Feed", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Study Smarter", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(8.dp))
+
+            drawerItem("Home",          Icons.Rounded.Home,              Routes.HOME,          onNavigate)
+            drawerItem("Resources",     Icons.Rounded.LibraryBooks,      Routes.RESOURCES,     onNavigate)
+            drawerItem("Leaderboard",   Icons.Rounded.EmojiEvents,       Routes.LEADERBOARD,   onNavigate)
+            drawerItem("Notifications", Icons.Rounded.Notifications,     Routes.NOTIFICATIONS, onNavigate)
+            drawerItem("Downloads",     Icons.Rounded.Download,          Routes.DOWNLOADS,     onNavigate)
+            drawerItem("Premium",       Icons.Rounded.WorkspacePremium,  Routes.PREMIUM,       onNavigate)
+            drawerItem("Quiz",          Icons.Rounded.Quiz,              Routes.QUIZ_HOME,     onNavigate)
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(8.dp))
+
+            drawerItem("Settings",    Icons.Rounded.Settings,  Routes.SETTINGS,    onNavigate)
+            drawerItem("Feedback",    Icons.Rounded.Feedback,  Routes.FEEDBACK,    onNavigate)
+            drawerItem("About",       Icons.Rounded.Info,      Routes.ABOUT,       onNavigate)
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(8.dp))
+
+            // Sign out
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onSignOut)
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Rounded.Logout, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(14.dp))
+                Text("Sign Out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
+            }
         }
-
-        HorizontalDivider(color = AccentCyan.copy(0.12f))
-        Spacer(Modifier.height(8.dp))
-
-        // Main navigation items
-        DrawerSection(title = "Main")
-        DrawerItem(Icons.Rounded.Home,          "Home",          onNavigate, Routes.HOME)
-        DrawerItem(Icons.Rounded.AutoStories,   "Study Resources", onNavigate, Routes.RESOURCES)
-        DrawerItem(Icons.Rounded.Quiz,          "Tests & Quizzes", onNavigate, Routes.QUIZ_HOME)
-        DrawerItem(Icons.Rounded.Chat,          "Community",     onNavigate, Routes.CHATS)
-        DrawerItem(Icons.Rounded.EmojiEvents,   "Leaderboard",   onNavigate, Routes.LEADERBOARD)
-
-        Spacer(Modifier.height(4.dp))
-        HorizontalDivider(color = AccentCyan.copy(0.08f), modifier = Modifier.padding(horizontal = 16.dp))
-        Spacer(Modifier.height(4.dp))
-
-        DrawerSection(title = "Account")
-        DrawerItem(Icons.Rounded.Person,        "Profile",       onNavigate, Routes.PROFILE)
-        DrawerItem(Icons.Rounded.Notifications, "Notifications", onNavigate, Routes.NOTIFICATIONS)
-        DrawerItem(Icons.Rounded.WorkspacePremium, "Premium",    onNavigate, Routes.PREMIUM)
-        DrawerItem(Icons.Rounded.Download,      "Downloads",     onNavigate, Routes.DOWNLOADS)
-
-        Spacer(Modifier.height(4.dp))
-        HorizontalDivider(color = AccentCyan.copy(0.08f), modifier = Modifier.padding(horizontal = 16.dp))
-        Spacer(Modifier.height(4.dp))
-
-        DrawerSection(title = "Support")
-        DrawerItem(Icons.Rounded.Settings,         "Settings",      onNavigate, Routes.SETTINGS)
-        DrawerItem(Icons.Rounded.Feedback,         "Send Feedback", onNavigate, Routes.FEEDBACK)
-        DrawerItem(Icons.Rounded.Info,             "About",         onNavigate, Routes.ABOUT)
-        DrawerItem(Icons.Rounded.AdminPanelSettings, "Admin Panel", onNavigate, Routes.ADMIN)
-
-        Spacer(Modifier.weight(1f))
-        HorizontalDivider(color = AccentCyan.copy(0.08f), modifier = Modifier.padding(horizontal = 16.dp))
-
-        // Sign out
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onSignOut)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Icon(Icons.Rounded.Logout, null, tint = AccentCyan.copy(0.7f), modifier = Modifier.size(20.dp))
-            Text("Sign Out", color = TextSecondary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-        }
-        Spacer(Modifier.height(16.dp))
     }
 }
 
 @Composable
-private fun DrawerSection(title: String) {
-    Text(
-        text     = title.uppercase(),
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Bold,
-        color    = TextMuted,
-        modifier = Modifier.padding(start = 24.dp, top = 4.dp, bottom = 2.dp)
-    )
-}
-
-@Composable
-private fun DrawerItem(
-    icon: ImageVector,
-    label: String,
-    onNavigate: (String) -> Unit,
-    route: String
-) {
+private fun drawerItem(label: String, icon: ImageVector, route: String, onNavigate: (String) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
             .clickable { onNavigate(route) }
-            .padding(horizontal = 20.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = AccentCyan.copy(0.85f), modifier = Modifier.size(20.dp))
-        Text(label, color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+        Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(14.dp))
+        Text(label, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, fontSize = 14.sp)
     }
 }

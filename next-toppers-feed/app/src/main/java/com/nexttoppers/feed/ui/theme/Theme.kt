@@ -13,51 +13,59 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary              = AccentCyan,
-    onPrimary            = BackgroundBlack,
-    primaryContainer     = SurfaceElevated,
-    onPrimaryContainer   = AccentCyan,
+    primary              = Md3Blue80,
+    onPrimary            = Md3Blue20,
+    primaryContainer     = Md3Blue30,
+    onPrimaryContainer   = Md3Blue90,
 
-    secondary            = AccentEmerald,
-    onSecondary          = BackgroundBlack,
-    secondaryContainer   = SurfaceCard,
-    onSecondaryContainer = AccentEmerald,
+    secondary            = Md3Green80,
+    onSecondary          = Md3Green20,
+    secondaryContainer   = Md3Green30,
+    onSecondaryContainer = Md3Green90,
 
     tertiary             = PremiumGold,
-    onTertiary           = BackgroundBlack,
+    onTertiary           = Color(0xFF3B2200),
+    tertiaryContainer    = Color(0xFF553300),
+    onTertiaryContainer  = Color(0xFFFFDDAE),
 
     background           = BackgroundBlack,
-    onBackground         = TextPrimary,
+    onBackground         = Neutral99,
 
     surface              = SurfaceDark,
-    onSurface            = TextPrimary,
+    onSurface            = Neutral90,
     surfaceVariant       = SurfaceCard,
-    onSurfaceVariant     = TextSecondary,
+    onSurfaceVariant     = Neutral80,
 
-    outline              = TextMuted,
+    outline              = Neutral40,
     outlineVariant       = SurfaceElevated,
 
-    error                = ErrorRed,
-    onError              = TextPrimary,
+    error                = Color(0xFFFFB4AB),
+    onError              = Color(0xFF690005),
+    errorContainer       = Color(0xFF93000A),
+    onErrorContainer     = Color(0xFFFFDAD6),
 
-    inverseSurface       = TextPrimary,
-    inverseOnSurface     = BackgroundBlack,
-    inversePrimary       = NeonGreenDim
+    inverseSurface       = Neutral90,
+    inverseOnSurface     = Neutral20,
+    inversePrimary       = Md3Blue40,
+
+    scrim                = Color(0xFF000000)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary              = AccentCyan,
-    onPrimary            = LightBackground,
-    primaryContainer     = LightCard,
-    onPrimaryContainer   = Color(0xFF0369A1),
+    primary              = Md3Blue40,
+    onPrimary            = Neutral100,
+    primaryContainer     = Md3Blue90,
+    onPrimaryContainer   = Md3Blue10,
 
-    secondary            = AccentEmerald,
-    onSecondary          = LightBackground,
-    secondaryContainer   = LightCard,
-    onSecondaryContainer = Color(0xFF047857),
+    secondary            = Md3Green40,
+    onSecondary          = Neutral100,
+    secondaryContainer   = Md3Green90,
+    onSecondaryContainer = Md3Green10,
 
-    tertiary             = PremiumGold,
-    onTertiary           = LightBackground,
+    tertiary             = Color(0xFF7B5800),
+    onTertiary           = Neutral100,
+    tertiaryContainer    = Color(0xFFFFDDAE),
+    onTertiaryContainer  = Color(0xFF261A00),
 
     background           = LightBackground,
     onBackground         = LightTextPrimary,
@@ -71,39 +79,43 @@ private val LightColorScheme = lightColorScheme(
     outlineVariant       = LightElevated,
 
     error                = ErrorRed,
-    onError              = LightBackground,
+    onError              = Neutral100,
+    errorContainer       = Color(0xFFFFDAD6),
+    onErrorContainer     = Color(0xFF410002),
 
-    inverseSurface       = LightTextPrimary,
-    inverseOnSurface     = LightBackground,
-    inversePrimary       = AccentCyan
+    inverseSurface       = Neutral10,
+    inverseOnSurface     = Neutral95,
+    inversePrimary       = Md3Blue80,
+
+    scrim                = Color(0xFF000000)
 )
 
 @Composable
 fun NextToppersFeedTheme(
-    themeMode: String = "dark",
+    themeMode: String = "system",
     content: @Composable () -> Unit
 ) {
     val systemDark = isSystemInDarkTheme()
     val useDark = when (themeMode) {
         "light"  -> false
-        "system" -> systemDark
-        else     -> true
+        "dark"   -> true
+        else     -> systemDark
     }
 
     val colorScheme = if (useDark) DarkColorScheme else LightColorScheme
-    val statusBarColor   = if (useDark) BackgroundBlack else LightBackground
+    val statusBarColor   = colorScheme.background
     val navBarColor      = if (useDark) SurfaceDark else LightSurface
-    val lightBars        = !useDark
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor     = statusBarColor.toArgb()
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            window.statusBarColor     = Color.Transparent.toArgb()
             window.navigationBarColor = navBarColor.toArgb()
             WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars     = lightBars
-                isAppearanceLightNavigationBars = lightBars
+                isAppearanceLightStatusBars     = !useDark
+                isAppearanceLightNavigationBars = !useDark
             }
         }
     }

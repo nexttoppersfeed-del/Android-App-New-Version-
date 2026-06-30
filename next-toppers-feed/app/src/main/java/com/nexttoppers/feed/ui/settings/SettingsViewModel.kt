@@ -27,172 +27,96 @@ class SettingsViewModel @Inject constructor(
     private val prefs: AppPreferences
 ) : ViewModel() {
 
-    private val _uiState =
-        MutableStateFlow(SettingsUiState())
+    private val _uiState = MutableStateFlow(SettingsUiState())
+    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
-    val uiState: StateFlow<SettingsUiState> =
-        _uiState.asStateFlow()
+    val themeMode: StateFlow<String> = prefs.themeMode.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        "system"
+    )
 
-    // ─────────────────────────────────────────────────────────
-    // Preference Flows
-    // ─────────────────────────────────────────────────────────
+    val pushNotificationsEnabled = prefs.pushNotificationsEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true
+    )
 
-    val pushNotificationsEnabled =
-        prefs.pushNotificationsEnabled.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            true
-        )
+    val announcementAlertsEnabled = prefs.announcementAlertsEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true
+    )
 
-    val announcementAlertsEnabled =
-        prefs.announcementAlertsEnabled.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            true
-        )
+    val quizRemindersEnabled = prefs.quizRemindersEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
 
-    val quizRemindersEnabled =
-        prefs.quizRemindersEnabled.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            false
-        )
+    val streakRemindersEnabled = prefs.streakRemindersEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true
+    )
 
-    val streakRemindersEnabled =
-        prefs.streakRemindersEnabled.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            true
-        )
+    val wifiOnlyDownloads = prefs.wifiOnlyDownloads.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
 
-    val wifiOnlyDownloads =
-        prefs.wifiOnlyDownloads.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            false
-        )
+    val analyticsEnabled = prefs.analyticsEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true
+    )
 
-    val analyticsEnabled =
-        prefs.analyticsEnabled.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            true
-        )
-
-    // ─────────────────────────────────────────────────────────
-    // Setters
-    // ─────────────────────────────────────────────────────────
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch { prefs.setThemeMode(mode) }
+    }
 
     fun setPushNotifications(enabled: Boolean) {
-        viewModelScope.launch {
-            prefs.setPushNotifications(enabled)
-        }
+        viewModelScope.launch { prefs.setPushNotifications(enabled) }
     }
 
     fun setAnnouncementAlerts(enabled: Boolean) {
-        viewModelScope.launch {
-            prefs.setAnnouncementAlerts(enabled)
-        }
+        viewModelScope.launch { prefs.setAnnouncementAlerts(enabled) }
     }
 
     fun setQuizReminders(enabled: Boolean) {
-        viewModelScope.launch {
-            prefs.setQuizReminders(enabled)
-        }
+        viewModelScope.launch { prefs.setQuizReminders(enabled) }
     }
 
     fun setStreakReminders(enabled: Boolean) {
-        viewModelScope.launch {
-            prefs.setStreakReminders(enabled)
-        }
+        viewModelScope.launch { prefs.setStreakReminders(enabled) }
     }
 
     fun setWifiOnlyDownloads(enabled: Boolean) {
-        viewModelScope.launch {
-            prefs.setWifiOnlyDownloads(enabled)
-        }
+        viewModelScope.launch { prefs.setWifiOnlyDownloads(enabled) }
     }
 
     fun setAnalyticsEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            prefs.setAnalyticsEnabled(enabled)
-        }
+        viewModelScope.launch { prefs.setAnalyticsEnabled(enabled) }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // Clear Cache
-    // ─────────────────────────────────────────────────────────
-
     fun clearCache(context: Context) {
-
         viewModelScope.launch {
-
             runCatching {
-
-                // Clear Coil image cache
-                val imageLoader =
-                    ImageLoader(context)
-
+                val imageLoader = ImageLoader(context)
                 imageLoader.diskCache?.clear()
-
-                // Clear downloads
-                val deletedFiles =
-                    DownloadSecurity.clearAllDownloads(context)
-
+                val deletedFiles = DownloadSecurity.clearAllDownloads(context)
                 prefs.recordCacheClear()
-
-                AppLogger.i(
-                    "SettingsViewModel",
-                    "Cache cleared: $deletedFiles files removed"
+                AppLogger.i("SettingsViewModel", "Cache cleared: $deletedFiles files removed")
+                _uiState.value = _uiState.value.copy(
+                    cacheCleared = true,
+                    successMessage = "Cache cleared successfully"
                 )
-
-                _uiState.value =
-                    _uiState.value.copy(
-                        cacheCleared = true,
-                        successMessage = "✅ Cache cleared successfully"
-                    )
-
             }.onFailure { error ->
-
-                AppLogger.e(
-                    "SettingsViewModel",
-                    "Cache clear failed",
-                    error
+                AppLogger.e("SettingsViewModel", "Cache clear failed", error)
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Cache clear failed: ${error.message}"
                 )
-
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            "Cache clear failed: ${error.message}"
-                    )
             }
         }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // Reset Settings
-    // ─────────────────────────────────────────────────────────
-
     fun resetToDefaults() {
-
         viewModelScope.launch {
-
             prefs.resetToDefaults()
-
-            _uiState.value =
-                _uiState.value.copy(
-                    successMessage =
-                        "Settings reset to defaults"
-                )
+            _uiState.value = _uiState.value.copy(successMessage = "Settings reset to defaults")
         }
     }
 
     fun clearMessages() {
-
-        _uiState.value =
-            _uiState.value.copy(
-                successMessage = null,
-                errorMessage = null
-            )
+        _uiState.value = _uiState.value.copy(successMessage = null, errorMessage = null)
     }
 }
