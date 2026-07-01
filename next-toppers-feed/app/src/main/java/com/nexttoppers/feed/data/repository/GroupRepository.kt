@@ -4,6 +4,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.nexttoppers.feed.data.model.Group
 import com.nexttoppers.feed.data.model.defaultGroups
+import com.nexttoppers.feed.util.resolveTimestamp
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -21,7 +22,10 @@ class GroupRepository @Inject constructor(
         val listener = groupsCol.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val groups = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(Group::class.java)?.copy(groupId = doc.id) } catch (e: Exception) { null }
+                try {
+                    doc.toObject(Group::class.java)
+                        ?.copy(groupId = doc.id, createdAt = doc.resolveTimestamp("createdAt"))
+                } catch (e: Exception) { null }
             } ?: emptyList()
 
             if (groups.isEmpty()) {
@@ -36,7 +40,8 @@ class GroupRepository @Inject constructor(
     fun observeGroup(groupId: String): Flow<Result<Group>> = callbackFlow {
         val listener = groupsCol.document(groupId).addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
-            val group = snap?.toObject(Group::class.java)?.copy(groupId = snap.id)
+            val group = snap?.toObject(Group::class.java)
+                ?.copy(groupId = snap.id, createdAt = snap.resolveTimestamp("createdAt"))
                 ?: defaultGroups.find { it.groupId == groupId }
             if (group != null) trySend(Result.success(group))
             else trySend(Result.failure(Exception("Group not found")))
@@ -49,7 +54,10 @@ class GroupRepository @Inject constructor(
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val groups = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(Group::class.java)?.copy(groupId = doc.id) } catch (e: Exception) { null }
+                try {
+                    doc.toObject(Group::class.java)
+                        ?.copy(groupId = doc.id, createdAt = doc.resolveTimestamp("createdAt"))
+                } catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(groups))
         }

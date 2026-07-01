@@ -19,9 +19,15 @@ data class User(
 
     val isOnline: Boolean = false,
 
+    // Legacy documents may contain a String instead of a Timestamp.
+    // @get:Exclude @field:Exclude prevents toObject() from touching this field;
+    // callers must populate it via .copy(lastSeen = snapshot.resolveTimestamp("lastSeen")).
+    @get:Exclude @field:Exclude
     val lastSeen: Timestamp = Timestamp.now(),
 
     // F14: website writes "createdAt" (was "joinedAt")
+    // Same dual-annotation guard as lastSeen — resolved manually after toObject().
+    @get:Exclude @field:Exclude
     val createdAt: Timestamp = Timestamp.now(),
 
     val xp: Long = 0L,
@@ -65,6 +71,8 @@ data class User(
     // isPremium is mirrored from premiumUsers collection by the website
     val isPremium: Boolean = false,
 
+    // Same dual-annotation guard — resolved manually after toObject().
+    @get:Exclude @field:Exclude
     val updatedAt: Timestamp = Timestamp.now(),
 
     // kept for app-only moderation feature

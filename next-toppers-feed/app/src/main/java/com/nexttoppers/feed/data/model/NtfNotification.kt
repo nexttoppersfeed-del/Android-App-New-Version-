@@ -1,6 +1,7 @@
 package com.nexttoppers.feed.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 // ── Notification type enum ─────────────────────────────────────────────────────
 enum class NotificationType(val emoji: String, val label: String) {
@@ -24,6 +25,9 @@ data class NtfNotification(
     val message: String     = "",
     // stored as String for Firestore compat; use notificationType computed property
     val type: String        = NotificationType.SYSTEM.name,
+    // Legacy docs may store as String; excluded so toObject() never crashes.
+    // Callers resolve via doc.resolveTimestamp("timestamp").
+    @get:Exclude @field:Exclude
     val timestamp: Timestamp = Timestamp.now(),
     val read: Boolean       = false,
     val actionRoute: String = "",

@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.Resource
+import com.nexttoppers.feed.util.resolveTimestamp
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -27,7 +28,10 @@ class ResourceManagementRepository @Inject constructor(
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val resources = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(Resource::class.java)?.copy(id = doc.id) } catch (e: Exception) { null }
+                try {
+                    doc.toObject(Resource::class.java)
+                        ?.copy(id = doc.id, createdAt = doc.resolveTimestamp("createdAt"))
+                } catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(resources))
         }
@@ -41,7 +45,10 @@ class ResourceManagementRepository @Inject constructor(
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val resources = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(Resource::class.java)?.copy(id = doc.id) } catch (e: Exception) { null }
+                try {
+                    doc.toObject(Resource::class.java)
+                        ?.copy(id = doc.id, createdAt = doc.resolveTimestamp("createdAt"))
+                } catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(resources))
         }
@@ -112,7 +119,8 @@ class ResourceManagementRepository @Inject constructor(
 
     suspend fun getResourceById(id: String): Result<Resource> = runCatching {
         val snap = resourcesCol.document(id).get().await()
-        snap.toObject(Resource::class.java)?.copy(id = snap.id)
+        snap.toObject(Resource::class.java)
+            ?.copy(id = snap.id, createdAt = snap.resolveTimestamp("createdAt"))
             ?: throw Exception("Resource not found")
     }
 
@@ -124,7 +132,10 @@ class ResourceManagementRepository @Inject constructor(
             .whereLessThanOrEqualTo("title", query + "\uf8ff")
             .limit(20).get().await()
         snap.documents.mapNotNull { doc ->
-            try { doc.toObject(Resource::class.java)?.copy(id = doc.id) } catch (e: Exception) { null }
+            try {
+                doc.toObject(Resource::class.java)
+                    ?.copy(id = doc.id, createdAt = doc.resolveTimestamp("createdAt"))
+            } catch (e: Exception) { null }
         }
     }
 

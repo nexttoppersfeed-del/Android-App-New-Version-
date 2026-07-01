@@ -5,6 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.ActivityFeedItem
 import com.nexttoppers.feed.data.model.ActivityType
+import com.nexttoppers.feed.util.resolveTimestamp
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -27,7 +28,8 @@ class ActivityFeedRepository @Inject constructor(
             .addSnapshotListener { snap, err ->
                 if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
                 val items = snap?.documents?.mapNotNull { doc ->
-                    doc.toObject(ActivityFeedItem::class.java)?.copy(id = doc.id)
+                    doc.toObject(ActivityFeedItem::class.java)
+                        ?.copy(id = doc.id, timestamp = doc.resolveTimestamp("timestamp"))
                 } ?: emptyList()
                 trySend(Result.success(items))
             }
@@ -42,7 +44,8 @@ class ActivityFeedRepository @Inject constructor(
             .addSnapshotListener { snap, err ->
                 if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
                 val items = snap?.documents?.mapNotNull { doc ->
-                    doc.toObject(ActivityFeedItem::class.java)?.copy(id = doc.id)
+                    doc.toObject(ActivityFeedItem::class.java)
+                        ?.copy(id = doc.id, timestamp = doc.resolveTimestamp("timestamp"))
                 } ?: emptyList()
                 trySend(Result.success(items))
             }

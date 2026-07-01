@@ -9,6 +9,7 @@ import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.Comment
 import com.nexttoppers.feed.data.model.CommunityPost
 import com.nexttoppers.feed.data.model.Reply
+import com.nexttoppers.feed.util.resolveTimestamp
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -211,8 +212,10 @@ class CommunityRepository @Inject constructor(
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val comments = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(Comment::class.java)?.copy(commentId = doc.id) }
-                catch (e: Exception) { null }
+                try {
+                    doc.toObject(Comment::class.java)
+                        ?.copy(commentId = doc.id, createdAt = doc.resolveTimestamp("createdAt"))
+                } catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(comments))
         }
@@ -245,8 +248,10 @@ class CommunityRepository @Inject constructor(
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val replies = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(Reply::class.java)?.copy(replyId = doc.id) }
-                catch (e: Exception) { null }
+                try {
+                    doc.toObject(Reply::class.java)
+                        ?.copy(replyId = doc.id, createdAt = doc.resolveTimestamp("createdAt"))
+                } catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(replies))
         }

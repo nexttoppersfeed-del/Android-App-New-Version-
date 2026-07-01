@@ -7,6 +7,7 @@ import com.google.firebase.firestore.SetOptions
 import com.nexttoppers.feed.data.model.User
 import com.nexttoppers.feed.util.AppLogger
 import com.nexttoppers.feed.util.resolveLastActive
+import com.nexttoppers.feed.util.resolveTimestamp
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -37,7 +38,12 @@ class UserRepository @Inject constructor(
                 }
 
                 val user = snapshot?.toObject(User::class.java)
-                    ?.copy(lastActive = snapshot.resolveLastActive())
+                    ?.copy(
+                        lastActive = snapshot.resolveLastActive(),
+                        lastSeen   = snapshot.resolveTimestamp("lastSeen"),
+                        createdAt  = snapshot.resolveTimestamp("createdAt"),
+                        updatedAt  = snapshot.resolveTimestamp("updatedAt")
+                    )
                 if (user != null) {
                     trySend(Result.success(user))
                 }
@@ -67,7 +73,12 @@ class UserRepository @Inject constructor(
                 )).await()
 
                 val base = snapshot.toObject(User::class.java)
-                    ?.copy(lastActive = snapshot.resolveLastActive())
+                    ?.copy(
+                        lastActive = snapshot.resolveLastActive(),
+                        lastSeen   = snapshot.resolveTimestamp("lastSeen"),
+                        createdAt  = snapshot.resolveTimestamp("createdAt"),
+                        updatedAt  = snapshot.resolveTimestamp("updatedAt")
+                    )
                     ?: createUserFromFirebase(firebaseUser, role)
                 Result.success(base.copy(role = role))
 
@@ -119,7 +130,12 @@ class UserRepository @Inject constructor(
             }
 
             val base = snapshot.toObject(User::class.java)
-                ?.copy(lastActive = snapshot.resolveLastActive())
+                ?.copy(
+                    lastActive = snapshot.resolveLastActive(),
+                    lastSeen   = snapshot.resolveTimestamp("lastSeen"),
+                    createdAt  = snapshot.resolveTimestamp("createdAt"),
+                    updatedAt  = snapshot.resolveTimestamp("updatedAt")
+                )
                 ?: User(uid = uid)
             val user = base.copy(uid = uid, name = name, photoURL = photoUrl)
 

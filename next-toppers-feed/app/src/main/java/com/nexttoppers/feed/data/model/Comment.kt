@@ -1,6 +1,7 @@
 package com.nexttoppers.feed.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 data class Comment(
     val commentId: String = "",
@@ -11,6 +12,9 @@ data class Comment(
     val content: String = "",
     val likes: List<String> = emptyList(),
     val repliesCount: Int = 0,
+    // Legacy docs may store as String; excluded so toObject() never crashes.
+    // Callers resolve via doc.resolveTimestamp("createdAt").
+    @get:Exclude @field:Exclude
     val createdAt: Timestamp = Timestamp.now(),
     val edited: Boolean = false
 ) {
@@ -40,6 +44,8 @@ data class Reply(
     val userPhoto: String = "",
     val content: String = "",
     val likes: List<String> = emptyList(),
+    // Legacy docs may store as String; excluded so toObject() never crashes.
+    @get:Exclude @field:Exclude
     val createdAt: Timestamp = Timestamp.now()
 ) {
     fun toMap(): Map<String, Any?> = mapOf(

@@ -1,6 +1,7 @@
 package com.nexttoppers.feed.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 data class NtfTest(
     val id: String = "",
@@ -36,6 +37,9 @@ data class TestAttempt(
     val skipped: Int = 0,
     val timeTaken: Int = 0,
     val answers: Map<String, String> = emptyMap(),
+    // Legacy docs may store as String; excluded so toObject() never crashes.
+    // Callers resolve via doc.resolveTimestamp("completedAt").
+    @get:Exclude @field:Exclude
     val completedAt: Timestamp = Timestamp.now()
 ) {
     // keep maxScore as a computed alias so existing UI doesn't break

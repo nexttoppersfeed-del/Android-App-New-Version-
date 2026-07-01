@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.Announcement
+import com.nexttoppers.feed.util.resolveTimestamp
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -36,7 +37,11 @@ class AnnouncementsRepository @Inject constructor(
                         val body = data["content"] as? String
                             ?: data["message"] as? String ?: ""
                         val a = doc.toObject(Announcement::class.java) ?: Announcement()
-                        a.copy(id = doc.id, content = body)
+                        a.copy(
+                            id        = doc.id,
+                            content   = body,
+                            createdAt = doc.resolveTimestamp("createdAt")
+                        )
                     } catch (_: Exception) { null }
                 } ?: emptyList()
                 val sorted = items.sortedWith(
@@ -54,7 +59,8 @@ class AnnouncementsRepository @Inject constructor(
         if (!doc.exists()) return@runCatching null
         val data = doc.data ?: return@runCatching null
         val body = data["content"] as? String ?: data["message"] as? String ?: ""
-        doc.toObject(Announcement::class.java)?.copy(id = doc.id, content = body)
+        doc.toObject(Announcement::class.java)
+            ?.copy(id = doc.id, content = body, createdAt = doc.resolveTimestamp("createdAt"))
     }
 
     suspend fun refreshAnnouncements(): Result<List<Announcement>> {
@@ -68,7 +74,8 @@ class AnnouncementsRepository @Inject constructor(
                 try {
                     val data = doc.data ?: return@mapNotNull null
                     val body = data["content"] as? String ?: data["message"] as? String ?: ""
-                    doc.toObject(Announcement::class.java)?.copy(id = doc.id, content = body)
+                    doc.toObject(Announcement::class.java)
+                        ?.copy(id = doc.id, content = body, createdAt = doc.resolveTimestamp("createdAt"))
                 } catch (_: Exception) { null }
             }
             val sorted = items.sortedWith(

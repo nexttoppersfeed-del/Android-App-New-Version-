@@ -6,6 +6,7 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.WriteBatch
 import com.nexttoppers.feed.data.model.NotificationType
 import com.nexttoppers.feed.data.model.NtfNotification
+import com.nexttoppers.feed.util.resolveTimestamp
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -28,7 +29,8 @@ class NotificationRepository @Inject constructor(
             .addSnapshotListener { snap, err ->
                 if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
                 val items = snap?.documents?.mapNotNull { doc ->
-                    doc.toObject(NtfNotification::class.java)?.copy(id = doc.id)
+                    doc.toObject(NtfNotification::class.java)
+                        ?.copy(id = doc.id, timestamp = doc.resolveTimestamp("timestamp"))
                 } ?: emptyList()
                 trySend(Result.success(items))
             }

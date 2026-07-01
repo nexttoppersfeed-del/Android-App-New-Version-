@@ -1,6 +1,7 @@
 package com.nexttoppers.feed.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 enum class ResourceSubject(val displayName: String, val emoji: String) {
     MATHS("Maths", "📐"),
@@ -30,6 +31,9 @@ data class Resource(
     val thumbnailUrl: String = "",
     val fileUrl: String = "",
     val premium: Boolean = false,
+    // Legacy docs may store as String; excluded so toObject() never crashes.
+    // Callers resolve via doc.resolveTimestamp("createdAt").
+    @get:Exclude @field:Exclude
     val createdAt: Timestamp = Timestamp.now(),
     val views: Long = 0L,
     val uploadedBy: String = "Admin",

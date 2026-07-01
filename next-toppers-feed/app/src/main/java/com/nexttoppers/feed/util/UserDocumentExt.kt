@@ -28,3 +28,26 @@ fun DocumentSnapshot.resolveLastActive(): String {
         else         -> ""
     }
 }
+
+/**
+ * Reads a Firestore Timestamp field defensively, handling both Timestamp objects
+ * and legacy String values (e.g. "2025-06-30") that old documents may contain
+ * when a field's type was changed between app versions or website schema updates.
+ *
+ * Returns the parsed Timestamp, or [default] if the field is absent, null, or
+ * stored as an unrecognized type. Like resolveLastActive(), a new
+ * SimpleDateFormat is created per call because it is not thread-safe.
+ */
+fun DocumentSnapshot.resolveTimestamp(
+    fieldName: String,
+    default: Timestamp = Timestamp.now()
+): Timestamp {
+    return when (val raw = get(fieldName)) {
+        is Timestamp -> raw
+        is String    -> try {
+            val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(raw)
+            if (date != null) Timestamp(date) else default
+        } catch (_: Exception) { default }
+        else         -> default
+    }
+}

@@ -1,6 +1,7 @@
 package com.nexttoppers.feed.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 // ── Activity type enum ─────────────────────────────────────────────────────────
 enum class ActivityType(val emoji: String, val label: String) {
@@ -23,6 +24,8 @@ data class ActivityFeedItem(
     val type: String                 = ActivityType.XP_EARNED.name,
     val description: String          = "",
     val xpEarned: Long               = 0L,
+    // Legacy docs may store as String; excluded so toObject() never crashes.
+    @get:Exclude @field:Exclude
     val timestamp: Timestamp         = Timestamp.now(),
     val metadata: Map<String, String> = emptyMap()
 ) {

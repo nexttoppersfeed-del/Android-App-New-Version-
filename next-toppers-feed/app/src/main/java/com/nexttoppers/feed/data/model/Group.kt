@@ -1,6 +1,7 @@
 package com.nexttoppers.feed.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 data class Group(
     val groupId: String = "",
@@ -9,6 +10,8 @@ data class Group(
     val description: String = "",
     val members: List<String> = emptyList(),
     val admins: List<String> = emptyList(),
+    // Legacy docs may store as String; excluded so toObject() never crashes.
+    @get:Exclude @field:Exclude
     val createdAt: Timestamp = Timestamp.now(),
     val premiumOnly: Boolean = false,
     val subject: String = "",

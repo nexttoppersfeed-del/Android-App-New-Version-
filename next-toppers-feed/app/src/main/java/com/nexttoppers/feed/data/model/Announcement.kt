@@ -1,6 +1,7 @@
 package com.nexttoppers.feed.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 data class Announcement(
 
@@ -20,6 +21,9 @@ data class Announcement(
 
     val priority: Int = 0,
 
+    // Legacy documents may store this as a String; @get:Exclude @field:Exclude prevents
+    // toObject() from crashing. Callers must resolve via snapshot.resolveTimestamp("createdAt").
+    @get:Exclude @field:Exclude
     val createdAt: Timestamp = Timestamp.now(),
 
     // Legacy app-only fields kept for backward read compat

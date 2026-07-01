@@ -5,6 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.User
 import com.nexttoppers.feed.util.resolveLastActive
+import com.nexttoppers.feed.util.resolveTimestamp
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -68,7 +69,13 @@ class AdminRepository @Inject constructor(
             val users = snap?.documents?.mapNotNull { doc ->
                 try {
                     doc.toObject(User::class.java)
-                        ?.copy(uid = doc.id, lastActive = doc.resolveLastActive())
+                        ?.copy(
+                            uid        = doc.id,
+                            lastActive = doc.resolveLastActive(),
+                            lastSeen   = doc.resolveTimestamp("lastSeen"),
+                            createdAt  = doc.resolveTimestamp("createdAt"),
+                            updatedAt  = doc.resolveTimestamp("updatedAt")
+                        )
                 } catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(users))
@@ -84,7 +91,13 @@ class AdminRepository @Inject constructor(
         byName.documents.mapNotNull { doc ->
             try {
                 doc.toObject(User::class.java)
-                    ?.copy(uid = doc.id, lastActive = doc.resolveLastActive())
+                    ?.copy(
+                        uid        = doc.id,
+                        lastActive = doc.resolveLastActive(),
+                        lastSeen   = doc.resolveTimestamp("lastSeen"),
+                        createdAt  = doc.resolveTimestamp("createdAt"),
+                        updatedAt  = doc.resolveTimestamp("updatedAt")
+                    )
             } catch (e: Exception) { null }
         }
     }
@@ -92,7 +105,13 @@ class AdminRepository @Inject constructor(
     suspend fun getUserById(uid: String): Result<User> = runCatching {
         val snap = usersCol.document(uid).get().await()
         snap.toObject(User::class.java)
-            ?.copy(uid = snap.id, lastActive = snap.resolveLastActive())
+            ?.copy(
+                uid        = snap.id,
+                lastActive = snap.resolveLastActive(),
+                lastSeen   = snap.resolveTimestamp("lastSeen"),
+                createdAt  = snap.resolveTimestamp("createdAt"),
+                updatedAt  = snap.resolveTimestamp("updatedAt")
+            )
             ?: throw Exception("User not found")
     }
 
@@ -101,7 +120,12 @@ class AdminRepository @Inject constructor(
     suspend fun getAdminStats(): Result<AdminStats> = runCatching {
         val usersSnap = usersCol.get().await()
         val allUsers  = usersSnap.documents.mapNotNull { doc ->
-            doc.toObject(User::class.java)?.copy(lastActive = doc.resolveLastActive())
+            doc.toObject(User::class.java)?.copy(
+                lastActive = doc.resolveLastActive(),
+                lastSeen   = doc.resolveTimestamp("lastSeen"),
+                createdAt  = doc.resolveTimestamp("createdAt"),
+                updatedAt  = doc.resolveTimestamp("updatedAt")
+            )
         }
         val totalUsers    = allUsers.size
         val premiumCount  = allUsers.count { it.isPremium }
@@ -163,7 +187,13 @@ class AdminRepository @Inject constructor(
             val users = snap?.documents?.mapNotNull { doc ->
                 try {
                     doc.toObject(User::class.java)
-                        ?.copy(uid = doc.id, lastActive = doc.resolveLastActive())
+                        ?.copy(
+                            uid        = doc.id,
+                            lastActive = doc.resolveLastActive(),
+                            lastSeen   = doc.resolveTimestamp("lastSeen"),
+                            createdAt  = doc.resolveTimestamp("createdAt"),
+                            updatedAt  = doc.resolveTimestamp("updatedAt")
+                        )
                 } catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(users))

@@ -1,58 +1,54 @@
 ---
-name: Next Toppers Feed — Prompt history
-description: Android Kotlin/Compose MVVM app; each prompt adds a feature scope. Key decisions and gotchas per prompt.
+name: Next Toppers Feed — Prompt history and conventions
+description: Android Kotlin/Compose app; key conventions for Firestore deserialization safety and incremental feature work.
 ---
 
-# Next Toppers Feed
+## App overview
+Android Kotlin/Jetpack Compose app with Firebase/Firestore backend. Website (React/Next.js) uses same Firestore collections but sometimes with different field names or types — the source of mixed Timestamp/String bugs.
 
-Package: com.nexttoppers.feed  
-Firebase project: aarambh26-27  
-Stack: Kotlin, Jetpack Compose, Firebase Firestore, Hilt DI, MVVM + Repository
+## Firestore deserialization safety conventions
 
-## Prompt 6 — XP + Leaderboard + Streak (completed)
+### The pattern
+Any model deserialized via `toObject()` that has a Timestamp field must:
+1. Add `@get:Exclude @field:Exclude` to the field in the data class (BOTH annotations always together — never just one).
+2. Import `com.google.firebase.firestore.Exclude` in the model file.
+3. At every `toObject(Foo::class.java)` call site, immediately chain `.copy(field = doc.resolveTimestamp("field"))`.
+4. Import `com.nexttoppers.feed.util.resolveTimestamp` in the repository file.
 
-### New files created
-- `util/LevelUtils.kt` — level thresholds & helpers
-- `data/model/LeaderboardEntry.kt`, `Achievement.kt`
-- `data/repository/LeaderboardRepository.kt`
-- `ui/leaderboard/LeaderboardViewModel.kt`
-- `ui/xp/XpComponents.kt`, `ui/achievements/AchievementsSection.kt`
+**Why:** Firestore's `toObject()` crashes with `RuntimeException: Failed to convert value of type Timestamp to String` (or vice versa) if a field's stored type doesn't match the Kotlin type. Old app versions and the website may have written fields as Strings that newer schema expects as Timestamps (and vice versa).
 
-### Key decisions
-- Leaderboard derived from `users` collection (no separate collection).
-- Weekly leaderboard: filter lastSeen >= 7 days, sort by XP client-side.
-- Streak: date-based using Calendar comparison on `lastActive` Timestamp.
-- Daily login XP (25 XP): gated by `lastActive` field, once per calendar day.
-- **Firestore composite index needed** on first run for weekly leaderboard query.
+### Utility location
+`util/UserDocumentExt.kt` — contains:
+- `DocumentSnapshot.resolveLastActive()` — handles Timestamp→String or String→String for `lastActive`
+- `DocumentSnapshot.resolveTimestamp(fieldName, default)` — handles Timestamp→Timestamp or String→Timestamp for any field; default is `Timestamp.now()`
 
----
+**Thread safety:** Both helpers create `SimpleDateFormat` per call (not shared). Do not refactor to a shared instance.
 
-## Prompt 7 — Premium Membership + Access Control (completed)
+### Safe models (manual mapping — no toObject() crash risk)
+- Chat, ChatMessage (ChatRepository.mapToChat/mapToMessage)
+- CommunityPost (CommunityRepository.mapPost)
+- NtfTest (TestRepository.mapTest)
+- TestAttempt in TestRepository (TestRepository.mapAttempt — but XpRepository uses toObject, patched)
+- Quiz, QuizAttempt (QuizRepository.mapDoc)
+- PremiumRequest (PremiumRequestRepository.mapRequest)
+- PremiumMembership (PremiumRepository.mapMembership)
+- LeaderboardEntry
+- Resource in ResourcesRepository (uses manual mapFile/mapLecture — only ResourceManagementRepository uses toObject)
 
-### New files created
-- `data/model/PremiumMembership.kt` — MembershipType/Badge enums, PremiumPlan data, premiumPlans list, `User.toPremiumMembership()` extension
-- `data/repository/PremiumRepository.kt` — observe/activate/expire/restore premium via Firestore
-- `ui/premium/PremiumViewModel.kt` — membership state, plan selection, purchase flow (placeholder)
-- `ui/premium/PremiumComponents.kt` — PremiumBadge, PremiumBannerCard, CurrentMembershipCard, MembershipPlanCard, PremiumBenefitItem, UpgradeDialog, LockedContentCard
-- `ui/premium/PremiumScreen.kt` — full premium screen with hero, plan cards, FAQs, purchase button
-- `ui/premium/UpgradeSuccessScreen.kt` — animated confetti + crown success screen
+### Patched models (toObject() path, both annotations + resolveTimestamp applied)
+- User: lastActive (resolveLastActive), lastSeen, createdAt, updatedAt
+- Announcement: createdAt
+- Comment: createdAt
+- Reply: createdAt
+- NtfNotification: timestamp
+- ActivityFeedItem: timestamp
+- Group: createdAt
+- TestAttempt: completedAt (XpRepository only)
+- Resource: createdAt (ResourceManagementRepository only)
 
-### Modified files
-- `data/model/User.kt` — added isPremium, premiumType, premiumStart, premiumEnd, premiumActive, membershipBadge
-- `ui/theme/Color.kt` — added PremiumGoldGlow, PremiumViolet, PremiumVioletDim, PremiumRose
-- `navigation/NavGraph.kt` — replaced PREMIUM placeholder with PremiumScreen, added UPGRADE_SUCCESS route
-- `ui/home/HomeScreen.kt` — PremiumBannerCard replaces old banners, user.premium → user.isPremium
-- `ui/profile/ProfileScreen.kt` — PremiumBadge next to name, CurrentMembershipCard after level card
+### Default value note
+`Timestamp.now()` is used as the default for missing/unparseable fields — consistent with existing manual mapper defaults. This is semantically lossy (fabricates recency) but avoids crashes. For write operations, always use real Timestamps.
 
-### Key architectural decisions
-- **User.premium kept** as legacy backward-compat field; `isPremium` is the new source of truth.
-- `User.toPremiumMembership()` is an extension in `PremiumMembership.kt` — reusable from any composable without injecting PremiumRepository.
-- HomeViewModel and ProfileViewModel NOT modified — premium state derived inline from User object.
-- Purchase is a placeholder (1.8s delay then Firestore write) — real payment gateway in a future prompt.
-- Expiry detection runs on app start (PremiumViewModel.checkExpiry()) without Cloud Functions.
-- `LockedContentCard` uses alpha(0.12f) + frosted overlay instead of BlurMaskFilter (API 31+ only).
-
-### NOT built yet (next prompt)
-- Real payment gateway (Razorpay/Stripe)
-- Push notification for expiry warning
-- Admin analytics
+## General conventions
+- Feature additions are incremental; never rewrite architecture.
+- Writes always use proper Timestamps — only reads need the compat layer.

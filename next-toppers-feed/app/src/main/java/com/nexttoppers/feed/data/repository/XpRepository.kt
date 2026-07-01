@@ -7,6 +7,7 @@ import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.TestAttempt
 import com.nexttoppers.feed.util.LevelUtils
 import com.nexttoppers.feed.util.resolveLastActive
+import com.nexttoppers.feed.util.resolveTimestamp
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -216,8 +217,10 @@ class XpRepository @Inject constructor(
             .addSnapshotListener { snap, err ->
                 if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
                 val items = snap?.documents?.mapNotNull { doc ->
-                    try { doc.toObject(TestAttempt::class.java)?.copy(id = doc.id) }
-                    catch (_: Exception) { null }
+                    try {
+                        doc.toObject(TestAttempt::class.java)
+                            ?.copy(id = doc.id, completedAt = doc.resolveTimestamp("completedAt"))
+                    } catch (_: Exception) { null }
                 } ?: emptyList()
                 trySend(Result.success(items))
             }
@@ -231,8 +234,10 @@ class XpRepository @Inject constructor(
             .limit(limit)
             .get().await()
         snap.documents.mapNotNull { doc ->
-            try { doc.toObject(TestAttempt::class.java)?.copy(id = doc.id) }
-            catch (_: Exception) { null }
+            try {
+                doc.toObject(TestAttempt::class.java)
+                    ?.copy(id = doc.id, completedAt = doc.resolveTimestamp("completedAt"))
+            } catch (_: Exception) { null }
         }
     }
 
