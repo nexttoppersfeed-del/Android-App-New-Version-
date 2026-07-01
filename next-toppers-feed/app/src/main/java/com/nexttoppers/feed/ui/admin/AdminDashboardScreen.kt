@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.LibraryBooks
+import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Refresh
@@ -93,6 +94,7 @@ fun AdminDashboardScreen(
     onNavigateToModeration: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
     onNavigateToQuizManagement: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
     viewModel: AdminDashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -139,7 +141,8 @@ fun AdminDashboardScreen(
                         onAnnouncements           = onNavigateToAnnouncements,
                         onModeration              = onNavigateToModeration,
                         onAnalytics               = onNavigateToAnalytics,
-                        onQuizManagement          = onNavigateToQuizManagement
+                        onQuizManagement          = onNavigateToQuizManagement,
+                        onNotifications           = onNavigateToNotifications
                     )
                 }
             }
@@ -156,7 +159,8 @@ private fun AdminDashboardContent(
     onAnnouncements: () -> Unit,
     onModeration: () -> Unit,
     onAnalytics: () -> Unit,
-    onQuizManagement: () -> Unit
+    onQuizManagement: () -> Unit,
+    onNotifications: () -> Unit
 ) {
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -220,6 +224,7 @@ private fun AdminDashboardContent(
                 onModeration      = onModeration,
                 onAnalytics       = onAnalytics,
                 onQuizManagement  = onQuizManagement,
+                onNotifications   = onNotifications,
                 pendingCount      = state.stats.pendingRequests
             )
             Spacer(Modifier.height(24.dp))
@@ -376,16 +381,18 @@ private fun AdminActionsGrid(
     onModeration: () -> Unit,
     onAnalytics: () -> Unit,
     onQuizManagement: () -> Unit,
+    onNotifications: () -> Unit,
     pendingCount: Int
 ) {
     data class Action(val label: String, val icon: ImageVector, val color: Color, val badge: Int = 0, val onClick: () -> Unit)
     val actions = listOf(
-        Action("Premium\nRequests", Icons.Rounded.WorkspacePremium, PremiumGold, pendingCount, onPremiumRequests),
-        Action("Resources", Icons.Rounded.LibraryBooks, NeonCyan, 0, onResources),
-        Action("Announcements", Icons.Rounded.Campaign, NeonGreen, 0, onAnnouncements),
-        Action("Moderation", Icons.Rounded.Report, AdminRed, 0, onModeration),
-        Action("Analytics", Icons.Rounded.Analytics, AdminPurple, 0, onAnalytics),
-        Action("Quiz Mgmt", Icons.Rounded.Quiz, Color(0xFFFF6B35), 0, onQuizManagement)
+        Action("Premium\nRequests",  Icons.Rounded.WorkspacePremium,   PremiumGold,           pendingCount, onPremiumRequests),
+        Action("Resources",          Icons.Rounded.LibraryBooks,        NeonCyan,              0,            onResources),
+        Action("Announcements",      Icons.Rounded.Campaign,            NeonGreen,             0,            onAnnouncements),
+        Action("Moderation",         Icons.Rounded.Report,              AdminRed,              0,            onModeration),
+        Action("Analytics",          Icons.Rounded.Analytics,           AdminPurple,           0,            onAnalytics),
+        Action("Quiz Mgmt",          Icons.Rounded.Quiz,                Color(0xFFFF6B35),     0,            onQuizManagement),
+        Action("Notifications",      Icons.Rounded.NotificationsActive, Color(0xFFB388FF),     0,            onNotifications)
     )
     val rows = actions.chunked(3)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

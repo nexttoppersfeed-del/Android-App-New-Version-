@@ -52,6 +52,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -73,9 +74,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.nexttoppers.feed.MainActivity
 import com.nexttoppers.feed.ui.activity.ActivityFeedScreen
 import com.nexttoppers.feed.ui.admin.AdminAnnouncementsScreen
 import com.nexttoppers.feed.ui.admin.AdminDashboardScreen
+import com.nexttoppers.feed.ui.admin.AdminNotificationsScreen
 import com.nexttoppers.feed.ui.admin.AdminQuizManagementScreen
 import com.nexttoppers.feed.ui.admin.AnalyticsScreen
 import com.nexttoppers.feed.ui.admin.ModerationScreen
@@ -134,8 +137,9 @@ object Routes {
     const val ADMIN_ANNOUNCEMENTS = "admin/announcements"
     const val ADMIN_MODERATION   = "admin/moderation"
     const val ADMIN_ANALYTICS    = "admin/analytics"
-    const val ADMIN_QUIZ         = "admin/quiz"
-    const val ABOUT              = "about"
+    const val ADMIN_QUIZ          = "admin/quiz"
+    const val ADMIN_NOTIFICATIONS = "admin/notifications"
+    const val ABOUT               = "about"
     const val LEGAL_PRIVACY      = "legal/privacy"
     const val LEGAL_TERMS        = "legal/terms"
     const val REPORT_ISSUE       = "report_issue"
@@ -273,6 +277,14 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope       = rememberCoroutineScope()
+
+    // ── Consume deep-link route from FCM notification tap ──────────────────
+    val pendingRoute by MainActivity.pendingRoute.collectAsState()
+    LaunchedEffect(pendingRoute) {
+        val route = pendingRoute ?: return@LaunchedEffect
+        MainActivity.consumePendingRoute()
+        navController.navigateSafe(route)
+    }
 
     ModalNavigationDrawer(
         drawerState     = drawerState,
@@ -466,7 +478,8 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                         onNavigateToAnnouncements   = { navController.navigateSafe(Routes.ADMIN_ANNOUNCEMENTS) },
                         onNavigateToModeration      = { navController.navigateSafe(Routes.ADMIN_MODERATION) },
                         onNavigateToAnalytics       = { navController.navigateSafe(Routes.ADMIN_ANALYTICS) },
-                        onNavigateToQuizManagement  = { navController.navigateSafe(Routes.ADMIN_QUIZ) }
+                        onNavigateToQuizManagement  = { navController.navigateSafe(Routes.ADMIN_QUIZ) },
+                        onNavigateToNotifications   = { navController.navigateSafe(Routes.ADMIN_NOTIFICATIONS) }
                     )
                 }
 
@@ -488,6 +501,9 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                 }
                 composable(Routes.ADMIN_QUIZ) {
                     AdminQuizManagementScreen(onBack = { navController.popBackStack() })
+                }
+                composable(Routes.ADMIN_NOTIFICATIONS) {
+                    AdminNotificationsScreen(onBack = { navController.popBackStack() })
                 }
 
                 // ── Legal ───────────────────────────────────────────────────────

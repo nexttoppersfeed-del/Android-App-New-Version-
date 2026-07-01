@@ -1,5 +1,6 @@
 package com.nexttoppers.feed
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,6 +16,9 @@ import com.nexttoppers.feed.navigation.NtfNavGraph
 import com.nexttoppers.feed.ui.settings.SettingsViewModel
 import com.nexttoppers.feed.ui.theme.NextToppersFeedTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -26,6 +30,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // ── Read deep-link route from notification tap ─────────────────────
+        val initialRoute = intent?.getStringExtra(EXTRA_NOTIFICATION_ROUTE)
+        if (initialRoute != null) _pendingRoute.value = initialRoute
+
         setContent {
             val themeMode by settingsViewModel.themeMode.collectAsState()
             NextToppersFeedTheme(themeMode = themeMode) {
@@ -33,6 +41,27 @@ class MainActivity : ComponentActivity() {
                     NtfNavGraph()
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val route = intent.getStringExtra(EXTRA_NOTIFICATION_ROUTE)
+        if (!route.isNullOrEmpty()) {
+            _pendingRoute.value = route
+        }
+    }
+
+    companion object {
+        const val EXTRA_NOTIFICATION_ROUTE = "ntf_notification_route"
+
+        private val _pendingRoute = MutableStateFlow<String?>(null)
+        val pendingRoute: StateFlow<String?> = _pendingRoute.asStateFlow()
+
+        fun consumePendingRoute(): String? {
+            val route = _pendingRoute.value
+            _pendingRoute.value = null
+            return route
         }
     }
 }

@@ -5,16 +5,24 @@ import com.google.firebase.firestore.Exclude
 
 // ── Notification type enum ─────────────────────────────────────────────────────
 enum class NotificationType(val emoji: String, val label: String) {
-    XP_EARNED          ("⚡", "XP Earned"),
-    LEVEL_UP           ("🎉", "Level Up"),
-    STREAK_REMINDER    ("🔥", "Streak Reminder"),
-    RANK_CHANGE        ("🏆", "Rank Change"),
-    PREMIUM_EXPIRY     ("👑", "Premium Expiry"),
-    NEW_RESOURCE       ("📚", "New Resource"),
-    QUIZ_REMINDER      ("🎯", "Quiz Reminder"),
-    ANNOUNCEMENT       ("📢", "Announcement"),
-    ACHIEVEMENT_UNLOCKED("🏅", "Achievement Unlocked"),
-    SYSTEM             ("🔔", "System")
+    XP_EARNED              ("⚡", "XP Earned"),
+    LEVEL_UP               ("🎉", "Level Up"),
+    STREAK_REMINDER        ("🔥", "Streak Reminder"),
+    RANK_CHANGE            ("🏆", "Rank Change"),
+    PREMIUM_EXPIRY         ("👑", "Premium Expiry"),
+    NEW_RESOURCE           ("📚", "New Resource"),
+    QUIZ_REMINDER          ("🎯", "Quiz Reminder"),
+    ANNOUNCEMENT           ("📢", "Announcement"),
+    ACHIEVEMENT_UNLOCKED   ("🏅", "Achievement Unlocked"),
+    SYSTEM                 ("🔔", "System"),
+    // ── New types ──────────────────────────────────────────────────────────────
+    PRIVATE_MESSAGE        ("💬", "Private Message"),
+    COMMUNITY_MENTION      ("@", "Community Mention"),
+    NEW_LECTURE            ("🎬", "New Lecture"),
+    NEW_PDF                ("📄", "New PDF"),
+    NEW_NOTES              ("📝", "New Notes"),
+    PREMIUM_ACTIVATED      ("⭐", "Premium Activated"),
+    TEST_PUBLISHED         ("📋", "Test Published")
 }
 
 // ── Notification Firestore model ───────────────────────────────────────────────
@@ -40,8 +48,8 @@ data class NtfNotification(
     /** True if notification was created today (same calendar day). */
     val isToday: Boolean
         get() {
-            val now    = System.currentTimeMillis()
-            val ts     = timestamp.toDate().time
+            val now      = System.currentTimeMillis()
+            val ts       = timestamp.toDate().time
             val oneDayMs = 24L * 60 * 60 * 1000
             return (now - ts) < oneDayMs
         }
@@ -49,9 +57,9 @@ data class NtfNotification(
     /** True if within the past 7 days. */
     val isThisWeek: Boolean
         get() {
-            val now     = System.currentTimeMillis()
-            val ts      = timestamp.toDate().time
-            val weekMs  = 7L * 24 * 60 * 60 * 1000
+            val now    = System.currentTimeMillis()
+            val ts     = timestamp.toDate().time
+            val weekMs = 7L * 24 * 60 * 60 * 1000
             return (now - ts) < weekMs
         }
 
