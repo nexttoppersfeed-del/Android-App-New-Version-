@@ -17,7 +17,7 @@ data class AdminNotification(
     val imageUrl: String             = "",
     val deepLink: String             = "",
     val target: String               = NotificationTarget.ALL.name,
-    val selectedUserIds: List<String>= emptyList(),
+    val selectedUserIds: List<String> = emptyList(),
     val topic: String                = "",
     val notificationType: String     = NotificationType.ANNOUNCEMENT.name,
     @get:Exclude @field:Exclude
