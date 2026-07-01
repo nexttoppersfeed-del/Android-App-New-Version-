@@ -21,9 +21,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -94,6 +99,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -124,9 +130,20 @@ fun CommunityScreen(
         }
     }
 
+    // Track whether we've done the first scroll-to-bottom so subsequent
+    // scrolls only trigger when the user is already at the bottom.
+    var hasScrolledToBottom by remember { mutableStateOf(false) }
+
     LaunchedEffect(posts.size) {
-        if (posts.isNotEmpty() && isAtBottom) {
-            listState.animateScrollToItem(posts.size - 1)
+        if (posts.isNotEmpty()) {
+            if (!hasScrolledToBottom) {
+                // Initial load: jump instantly to the newest message (bottom).
+                listState.scrollToItem(posts.size - 1)
+                hasScrolledToBottom = true
+            } else if (isAtBottom) {
+                // New message arrived and user is already at the bottom: animate down.
+                listState.animateScrollToItem(posts.size - 1)
+            }
         }
     }
 
@@ -208,14 +225,14 @@ fun CommunityScreen(
             }
         }
 
-        // Input section is scoped with imePadding + navigationBarsPadding so that
-        // only the composer area reacts to the keyboard — the message list and header
-        // stay anchored and do not shift or jump during keyboard animation.
+        // Input section uses union of IME + navigation-bar insets so we take
+        // the MAX of each side rather than summing them — this eliminates the
+        // blank gap that appeared when keyboard was open (nav-bar height was
+        // being double-counted on top of the keyboard height).
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
+                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
         ) {
             replyTo?.let { replyPost ->
                 CommunityReplyBar(
@@ -290,7 +307,9 @@ private fun CommunityBubble(
     onReport: () -> Unit
 ) {
     val timeStr = try {
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(post.createdAt.toDate())
+        SimpleDateFormat("HH:mm", Locale.getDefault())
+            .apply { timeZone = TimeZone.getDefault() }
+            .format(post.createdAt.toDate())
     } catch (_: Exception) { "" }
 
     val maxWidth   = (LocalConfiguration.current.screenWidthDp * 0.74f).dp

@@ -61,7 +61,10 @@ class CommunityViewModel @Inject constructor(
         postsJob = viewModelScope.launch {
             communityRepository.observePosts(filterType = _selectedFilter.value).collect { result ->
                 result
-                    .onSuccess { posts -> _uiState.value = CommunityUiState.Success(posts) }
+                    // Repository emits newest-first (DESCENDING). Reverse to oldest-first
+                    // so the LazyColumn can render oldest at top and newest at bottom,
+                    // matching standard chat app behaviour.
+                    .onSuccess { posts -> _uiState.value = CommunityUiState.Success(posts.reversed()) }
                     .onFailure { err  -> _uiState.value = CommunityUiState.Error(err.message ?: "Failed to load") }
             }
         }
