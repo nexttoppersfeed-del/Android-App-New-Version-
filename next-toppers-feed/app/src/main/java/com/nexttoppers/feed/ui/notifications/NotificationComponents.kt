@@ -70,6 +70,13 @@ fun notificationColor(type: NotificationType): Color = when (type) {
     NotificationType.ANNOUNCEMENT        -> NeonCyan
     NotificationType.ACHIEVEMENT_UNLOCKED-> PremiumGold
     NotificationType.SYSTEM              -> TextSecondary
+    NotificationType.PRIVATE_MESSAGE     -> NeonCyan
+    NotificationType.COMMUNITY_MENTION   -> NeonGreen
+    NotificationType.NEW_LECTURE         -> NeonCyan
+    NotificationType.NEW_PDF             -> NeonCyan
+    NotificationType.NEW_NOTES           -> NeonGreen
+    NotificationType.PREMIUM_ACTIVATED   -> PremiumGold
+    NotificationType.TEST_PUBLISHED      -> PremiumViolet
 }
 
 // ── Bell icon with animated badge count ───────────────────────────────────────
