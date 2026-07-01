@@ -1,6 +1,7 @@
 package com.nexttoppers.feed.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 data class User(
 
@@ -30,6 +31,13 @@ data class User(
     val streak: Int = 0,
 
     // F21: website stores lastActive as a date string e.g. "2025-06-30"
+    // Legacy Firestore documents may contain a Timestamp here instead of a String.
+    // Both @get:Exclude and @field:Exclude are required: @get:Exclude covers
+    // getter-based bean discovery; @field:Exclude covers direct field reflection.
+    // Together they guarantee toObject() never touches this field regardless of
+    // which reflection path the Firestore SDK takes.
+    // Callers must populate it manually via .copy(lastActive = snapshot.resolveLastActive()).
+    @get:Exclude @field:Exclude
     val lastActive: String = "",
 
     // F16: website uses "totalQuizzes" (was "quizzesCompleted")

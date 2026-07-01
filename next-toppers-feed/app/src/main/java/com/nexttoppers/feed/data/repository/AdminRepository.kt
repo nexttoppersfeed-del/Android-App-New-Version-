@@ -4,6 +4,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.User
+import com.nexttoppers.feed.util.resolveLastActive
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -65,7 +66,10 @@ class AdminRepository @Inject constructor(
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val users = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(User::class.java)?.copy(uid = doc.id) } catch (e: Exception) { null }
+                try {
+                    doc.toObject(User::class.java)
+                        ?.copy(uid = doc.id, lastActive = doc.resolveLastActive())
+                } catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(users))
         }
@@ -78,13 +82,17 @@ class AdminRepository @Inject constructor(
             .whereLessThanOrEqualTo("name", query + "\uf8ff")
             .limit(20).get().await()
         byName.documents.mapNotNull { doc ->
-            try { doc.toObject(User::class.java)?.copy(uid = doc.id) } catch (e: Exception) { null }
+            try {
+                doc.toObject(User::class.java)
+                    ?.copy(uid = doc.id, lastActive = doc.resolveLastActive())
+            } catch (e: Exception) { null }
         }
     }
 
     suspend fun getUserById(uid: String): Result<User> = runCatching {
         val snap = usersCol.document(uid).get().await()
-        snap.toObject(User::class.java)?.copy(uid = snap.id)
+        snap.toObject(User::class.java)
+            ?.copy(uid = snap.id, lastActive = snap.resolveLastActive())
             ?: throw Exception("User not found")
     }
 
@@ -92,7 +100,9 @@ class AdminRepository @Inject constructor(
 
     suspend fun getAdminStats(): Result<AdminStats> = runCatching {
         val usersSnap = usersCol.get().await()
-        val allUsers  = usersSnap.documents.mapNotNull { it.toObject(User::class.java) }
+        val allUsers  = usersSnap.documents.mapNotNull { doc ->
+            doc.toObject(User::class.java)?.copy(lastActive = doc.resolveLastActive())
+        }
         val totalUsers    = allUsers.size
         val premiumCount  = allUsers.count { it.isPremium }
 
@@ -151,7 +161,10 @@ class AdminRepository @Inject constructor(
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val users = snap?.documents?.mapNotNull { doc ->
-                try { doc.toObject(User::class.java)?.copy(uid = doc.id) } catch (e: Exception) { null }
+                try {
+                    doc.toObject(User::class.java)
+                        ?.copy(uid = doc.id, lastActive = doc.resolveLastActive())
+                } catch (e: Exception) { null }
             } ?: emptyList()
             trySend(Result.success(users))
         }

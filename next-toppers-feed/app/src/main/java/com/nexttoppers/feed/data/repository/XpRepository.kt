@@ -6,6 +6,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.nexttoppers.feed.data.model.TestAttempt
 import com.nexttoppers.feed.util.LevelUtils
+import com.nexttoppers.feed.util.resolveLastActive
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -138,8 +139,8 @@ class XpRepository @Inject constructor(
     suspend fun awardDailyLoginXp(uid: String): Result<Boolean> = runCatching {
         val doc = userDoc(uid).get().await()
 
-        // F21: lastActive is now a date string — check it correctly
-        val lastActiveStr = doc.getString("lastActive") ?: ""
+        // F21: resolveLastActive handles both legacy Timestamp and current String format
+        val lastActiveStr = doc.resolveLastActive()
         val todayStr      = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         if (lastActiveStr == todayStr) {
@@ -248,8 +249,8 @@ class XpRepository @Inject constructor(
     private data class StreakResult(val newStreak: Int, val wasUpdated: Boolean)
 
     private fun calculateStreak(doc: com.google.firebase.firestore.DocumentSnapshot): StreakResult {
-        // F21: lastActive is a date string — compare by string
-        val lastActiveStr  = doc.getString("lastActive") ?: ""
+        // F21: resolveLastActive handles both legacy Timestamp and current String format
+        val lastActiveStr  = doc.resolveLastActive()
         val currentStreak  = (doc.getLong("streak") ?: 0L).toInt()
         val todayStr       = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val yesterdayStr   = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(
