@@ -257,6 +257,30 @@ class ResourcesRepository @Inject constructor(
             .take(limit.toInt())
     }
 
+    // ── By folder ID ──────────────────────────────────────────────────────────
+
+    suspend fun getByFolderId(folderId: String): Result<List<Resource>> = runCatching {
+        val filesSnap    = filesCol.whereEqualTo("folderId", folderId).limit(100).get().await()
+        val lecturesSnap = lecturesCol.whereEqualTo("folderId", folderId).limit(50).get().await()
+        val files    = filesSnap.documents.mapNotNull { mapFile(it) }
+        val lectures = lecturesSnap.documents.mapNotNull { mapLecture(it) }
+        (files + lectures)
+            .distinctBy { it.id }
+            .sortedByDescending { it.createdAt.seconds }
+    }
+
+    /** Resources whose folderId is blank/empty — appear at root of subject */
+    suspend fun getRootResourcesBySubject(subject: String): Result<List<Resource>> = runCatching {
+        val variants = subjectVariants(subject)
+        val filesSnap = filesCol.whereIn("subject", variants).limit(80).get().await()
+        val lecturesSnap = lecturesCol.whereIn("subject", variants).limit(50).get().await()
+        val all = (filesSnap.documents.mapNotNull { mapFile(it) } +
+                   lecturesSnap.documents.mapNotNull { mapLecture(it) })
+            .distinctBy { it.id }
+        all.filter { it.folderId.isBlank() }
+           .sortedByDescending { it.createdAt.seconds }
+    }
+
     // ── Count per subject ──────────────────────────────────────────────────────
 
     suspend fun getCountBySubject(): Map<String, Int> {

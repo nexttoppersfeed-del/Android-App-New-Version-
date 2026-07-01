@@ -345,18 +345,26 @@ private fun ResourceDetailContent(
                         }
                     }
 
-                    // "Read PDF" button — only when downloaded
-                    if (isDownloaded && !localPath.isNullOrEmpty()) {
+                    // "Read PDF" — offline version (downloaded)
+                    if (!localPath.isNullOrEmpty()) {
                         ActionButton(
-                            text    = "📖 Read PDF",
+                            text    = "📖 Read PDF  (Offline)",
                             color   = NeonGreen,
                             enabled = true,
                             onClick = { onOpenPdf(localPath) }
                         )
+                    } else if (resource.fileUrl.isNotEmpty() && resource.isPdfResource()) {
+                        // "Open PDF" — stream from URL even when not downloaded
+                        ActionButton(
+                            text    = "📖 Open PDF",
+                            color   = NeonGreen,
+                            enabled = true,
+                            onClick = { onOpenPdf("") }   // PdfViewerViewModel uses fileUrl
+                        )
                     }
 
-                    // "Open in Browser" — when NOT downloaded but has URL
-                    if (!isDownloaded && resource.fileUrl.isNotEmpty()) {
+                    // "Open in Browser" — always available as secondary option
+                    if (resource.fileUrl.isNotEmpty()) {
                         ActionButton(
                             text    = "🌐 Open in Browser",
                             color   = NeonCyan,

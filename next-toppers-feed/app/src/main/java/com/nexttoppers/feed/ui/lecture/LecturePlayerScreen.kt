@@ -3,9 +3,12 @@
 package com.nexttoppers.feed.ui.lecture
 
 import android.app.Activity
+import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.os.Build
+import android.util.Rational
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -37,8 +40,12 @@ import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.FullscreenExit
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PictureInPicture
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Replay10
+import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -96,6 +103,7 @@ fun LecturePlayerScreen(
     val playbackSpeed by viewModel.playbackSpeed.collectAsState()
     val isFullscreen  by viewModel.isFullscreen.collectAsState()
     val showSpeedMenu by viewModel.showSpeedMenu.collectAsState()
+    val isBuffering   by viewModel.isBuffering.collectAsState()
 
     val isYouTube = videoUrl.contains("youtu.be") || videoUrl.contains("youtube.com")
 
@@ -193,40 +201,62 @@ fun LecturePlayerScreen(
             }
 
             if (isFullscreen) {
-                // ── Fullscreen layout ────────────────────────────────────────────
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.Black)
                         .clickable(
-                            indication           = null,
-                            interactionSource    = remember { MutableInteractionSource() }
+                            indication        = null,
+                            interactionSource = remember { MutableInteractionSource() }
                         ) { scheduleHide() }
                 ) {
                     AndroidView(factory = { playerView }, modifier = Modifier.fillMaxSize())
+
+                    // Buffer indicator
+                    if (isBuffering) {
+                        CircularProgressIndicator(
+                            color       = NeonGreen,
+                            modifier    = Modifier.align(Alignment.Center).size(48.dp),
+                            strokeWidth = 3.dp
+                        )
+                    }
+
                     PlayerControlsOverlay(
-                        title           = title,
-                        isPlaying       = isPlaying,
-                        position        = if (isSeeking) seekTarget else position,
-                        duration        = duration,
-                        showControls    = showControls,
-                        isFullscreen    = true,
-                        playbackSpeed   = playbackSpeed,
-                        showSpeedMenu   = showSpeedMenu,
-                        speedOptions    = viewModel.speedOptions,
-                        onPlayPause     = { if (player.isPlaying) player.pause() else player.play() },
-                        onSeekStart     = { val pos = (it * duration).toLong(); seekTarget = pos; isSeeking = true },
-                        onSeekEnd       = { val pos = (it * duration).toLong(); player.seekTo(pos); isSeeking = false },
-                        onSpeedClick    = viewModel::toggleSpeedMenu,
-                        onSpeedSelect   = viewModel::setPlaybackSpeed,
-                        onDismissSpeed  = viewModel::dismissSpeedMenu,
-                        onFullscreen    = viewModel::toggleFullscreen,
-                        onBack          = { viewModel.setFullscreen(false) },
-                        modifier        = Modifier.fillMaxSize()
+                        title          = title,
+                        isPlaying      = isPlaying,
+                        isBuffering    = isBuffering,
+                        position       = if (isSeeking) seekTarget else position,
+                        duration       = duration,
+                        showControls   = showControls,
+                        isFullscreen   = true,
+                        playbackSpeed  = playbackSpeed,
+                        showSpeedMenu  = showSpeedMenu,
+                        speedOptions   = viewModel.speedOptions,
+                        onPlayPause    = { if (player.isPlaying) player.pause() else player.play() },
+                        onSeekStart    = { val pos = (it * duration).toLong(); seekTarget = pos; isSeeking = true },
+                        onSeekEnd      = { val pos = (it * duration).toLong(); player.seekTo(pos); isSeeking = false },
+                        onSeekBack     = { player.seekTo((player.currentPosition - 10_000).coerceAtLeast(0)) },
+                        onSeekForward  = { player.seekTo((player.currentPosition + 10_000).coerceAtMost(duration)) },
+                        onSpeedClick   = viewModel::toggleSpeedMenu,
+                        onSpeedSelect  = viewModel::setPlaybackSpeed,
+                        onDismissSpeed = viewModel::dismissSpeedMenu,
+                        onFullscreen   = viewModel::toggleFullscreen,
+                        onPip          = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                runCatching {
+                                    activity?.enterPictureInPictureMode(
+                                        PictureInPictureParams.Builder()
+                                            .setAspectRatio(Rational(16, 9))
+                                            .build()
+                                    )
+                                }
+                            }
+                        },
+                        onBack         = { viewModel.setFullscreen(false) },
+                        modifier       = Modifier.fillMaxSize()
                     )
                 }
             } else {
-                // ── Portrait layout ──────────────────────────────────────────────
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(
                         modifier = Modifier
@@ -239,25 +269,49 @@ fun LecturePlayerScreen(
                             ) { scheduleHide() }
                     ) {
                         AndroidView(factory = { playerView }, modifier = Modifier.fillMaxSize())
+
+                        // Buffer indicator
+                        if (isBuffering) {
+                            CircularProgressIndicator(
+                                color       = NeonGreen,
+                                modifier    = Modifier.align(Alignment.Center).size(48.dp),
+                                strokeWidth = 3.dp
+                            )
+                        }
+
                         PlayerControlsOverlay(
-                            title           = title,
-                            isPlaying       = isPlaying,
-                            position        = if (isSeeking) seekTarget else position,
-                            duration        = duration,
-                            showControls    = showControls,
-                            isFullscreen    = false,
-                            playbackSpeed   = playbackSpeed,
-                            showSpeedMenu   = showSpeedMenu,
-                            speedOptions    = viewModel.speedOptions,
-                            onPlayPause     = { if (player.isPlaying) player.pause() else player.play() },
-                            onSeekStart     = { val pos = (it * duration).toLong(); seekTarget = pos; isSeeking = true },
-                            onSeekEnd       = { val pos = (it * duration).toLong(); player.seekTo(pos); isSeeking = false },
-                            onSpeedClick    = viewModel::toggleSpeedMenu,
-                            onSpeedSelect   = viewModel::setPlaybackSpeed,
-                            onDismissSpeed  = viewModel::dismissSpeedMenu,
-                            onFullscreen    = viewModel::toggleFullscreen,
-                            onBack          = onBack,
-                            modifier        = Modifier.fillMaxSize()
+                            title          = title,
+                            isPlaying      = isPlaying,
+                            isBuffering    = isBuffering,
+                            position       = if (isSeeking) seekTarget else position,
+                            duration       = duration,
+                            showControls   = showControls,
+                            isFullscreen   = false,
+                            playbackSpeed  = playbackSpeed,
+                            showSpeedMenu  = showSpeedMenu,
+                            speedOptions   = viewModel.speedOptions,
+                            onPlayPause    = { if (player.isPlaying) player.pause() else player.play() },
+                            onSeekStart    = { val pos = (it * duration).toLong(); seekTarget = pos; isSeeking = true },
+                            onSeekEnd      = { val pos = (it * duration).toLong(); player.seekTo(pos); isSeeking = false },
+                            onSeekBack     = { player.seekTo((player.currentPosition - 10_000).coerceAtLeast(0)) },
+                            onSeekForward  = { player.seekTo((player.currentPosition + 10_000).coerceAtMost(duration)) },
+                            onSpeedClick   = viewModel::toggleSpeedMenu,
+                            onSpeedSelect  = viewModel::setPlaybackSpeed,
+                            onDismissSpeed = viewModel::dismissSpeedMenu,
+                            onFullscreen   = viewModel::toggleFullscreen,
+                            onPip          = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    runCatching {
+                                        activity?.enterPictureInPictureMode(
+                                            PictureInPictureParams.Builder()
+                                                .setAspectRatio(Rational(16, 9))
+                                                .build()
+                                        )
+                                    }
+                                }
+                            },
+                            onBack         = onBack,
+                            modifier       = Modifier.fillMaxSize()
                         )
                     }
 
@@ -276,10 +330,18 @@ fun LecturePlayerScreen(
                             lineHeight = 24.sp
                         )
                         Text(
-                            text     = "Streaming via HLS",
-                            color    = TextMuted,
+                            text  = if (videoUrl.contains(".m3u8")) "Streaming via HLS"
+                                    else "Streaming video",
+                            color = TextMuted,
                             fontSize = 12.sp
                         )
+                        if (duration > 0) {
+                            Text(
+                                text  = "Duration: ${formatMs(duration)}",
+                                color = TextMuted,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }
@@ -288,11 +350,11 @@ fun LecturePlayerScreen(
 }
 
 // ── Player controls overlay ────────────────────────────────────────────────────
-
 @Composable
 private fun PlayerControlsOverlay(
     title: String,
     isPlaying: Boolean,
+    isBuffering: Boolean,
     position: Long,
     duration: Long,
     showControls: Boolean,
@@ -303,10 +365,13 @@ private fun PlayerControlsOverlay(
     onPlayPause: () -> Unit,
     onSeekStart: (Float) -> Unit,
     onSeekEnd: (Float) -> Unit,
+    onSeekBack: () -> Unit,
+    onSeekForward: () -> Unit,
     onSpeedClick: () -> Unit,
     onSpeedSelect: (Float) -> Unit,
     onDismissSpeed: () -> Unit,
     onFullscreen: () -> Unit,
+    onPip: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -324,10 +389,10 @@ private fun PlayerControlsOverlay(
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            0f   to Color.Black.copy(0.65f),
+                            0f    to Color.Black.copy(0.65f),
                             0.35f to Color.Transparent,
                             0.65f to Color.Transparent,
-                            1f   to Color.Black.copy(0.80f)
+                            1f    to Color.Black.copy(0.80f)
                         )
                     )
             )
@@ -348,9 +413,7 @@ private fun PlayerControlsOverlay(
             ) {
                 IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
                     Box(
-                        modifier         = Modifier
-                            .size(34.dp)
-                            .background(Color.Black.copy(0.5f), CircleShape),
+                        modifier         = Modifier.size(34.dp).background(Color.Black.copy(0.5f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Rounded.ArrowBack, null, tint = Color.White, modifier = Modifier.size(18.dp))
@@ -365,33 +428,67 @@ private fun PlayerControlsOverlay(
                     maxLines   = 1,
                     modifier   = Modifier.weight(1f)
                 )
+                // PiP button (Android 8+)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    IconButton(onClick = onPip, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            Icons.Rounded.PictureInPicture, null,
+                            tint     = Color.White.copy(0.85f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
 
-        // ── Centre play/pause ────────────────────────────────────────────────────
+        // ── Centre controls ──────────────────────────────────────────────────────
         AnimatedVisibility(
-            visible  = showControls,
+            visible  = showControls && !isBuffering,
             enter    = fadeIn(tween(200)),
             exit     = fadeOut(tween(300)),
             modifier = Modifier.align(Alignment.Center)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(NeonGreen.copy(0.20f), CircleShape)
-                    .border(1.5.dp, NeonGreen.copy(0.60f), CircleShape)
-                    .clickable(
-                        indication        = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { onPlayPause() },
-                contentAlignment = Alignment.Center
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment     = Alignment.CenterVertically
             ) {
-                Icon(
-                    if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    null,
-                    tint     = NeonGreen,
-                    modifier = Modifier.size(28.dp)
-                )
+                // Seek back 10s
+                IconButton(onClick = onSeekBack, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        Icons.Rounded.Replay10, null,
+                        tint     = Color.White.copy(0.85f),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // Play/pause
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(NeonGreen.copy(0.20f), CircleShape)
+                        .border(1.5.dp, NeonGreen.copy(0.60f), CircleShape)
+                        .clickable(
+                            indication        = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onPlayPause() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        null,
+                        tint     = NeonGreen,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // Seek forward 10s
+                IconButton(onClick = onSeekForward, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        Icons.Rounded.Forward10, null,
+                        tint     = Color.White.copy(0.85f),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
             }
         }
 
@@ -403,20 +500,18 @@ private fun PlayerControlsOverlay(
             modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-                // Seek bar
                 Slider(
-                    value         = fraction,
-                    onValueChange = { onSeekStart(it) },
+                    value                = fraction,
+                    onValueChange        = { onSeekStart(it) },
                     onValueChangeFinished = { onSeekEnd(fraction) },
-                    modifier      = Modifier.fillMaxWidth(),
-                    colors        = SliderDefaults.colors(
-                        thumbColor            = NeonGreen,
-                        activeTrackColor      = NeonGreen,
-                        inactiveTrackColor    = Color.White.copy(0.25f)
+                    modifier             = Modifier.fillMaxWidth(),
+                    colors               = SliderDefaults.colors(
+                        thumbColor         = NeonGreen,
+                        activeTrackColor   = NeonGreen,
+                        inactiveTrackColor = Color.White.copy(0.25f)
                     )
                 )
 
-                // Time + buttons row
                 Row(
                     modifier          = Modifier
                         .fillMaxWidth()
@@ -441,30 +536,22 @@ private fun PlayerControlsOverlay(
                             contentAlignment = Alignment.Center
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Rounded.Speed, null,
-                                    tint     = NeonGreen,
-                                    modifier = Modifier.size(14.dp)
-                                )
+                                Icon(Icons.Rounded.Speed, null, tint = NeonGreen, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(4.dp))
                                 Text(
-                                    text     = "${playbackSpeed}x".removeSuffix(".0x") + "x",
-                                    color    = Color.White,
-                                    fontSize = 11.sp,
+                                    "${playbackSpeed}x".let { s -> if (s.endsWith(".0x")) s.replace(".0x", "x") else s },
+                                    color      = Color.White,
+                                    fontSize   = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
 
-                        // Speed dropdown
                         if (showSpeedMenu) {
                             Column(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
-                                    .background(
-                                        Color(0xFF1A1A2E),
-                                        RoundedCornerShape(10.dp)
-                                    )
+                                    .background(Color(0xFF1A1A2E), RoundedCornerShape(10.dp))
                                     .border(1.dp, NeonGreen.copy(0.3f), RoundedCornerShape(10.dp))
                                     .padding(vertical = 4.dp)
                             ) {
@@ -472,15 +559,13 @@ private fun PlayerControlsOverlay(
                                     val selected = speed == playbackSpeed
                                     Box(
                                         modifier = Modifier
-                                            .background(
-                                                if (selected) NeonGreen.copy(0.15f) else Color.Transparent
-                                            )
+                                            .background(if (selected) NeonGreen.copy(0.15f) else Color.Transparent)
                                             .clickable { onSpeedSelect(speed) }
                                             .padding(horizontal = 18.dp, vertical = 8.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text       = "${speed}x".removeSuffix(".0x") + "x",
+                                            "${speed}x".let { s -> if (s.endsWith(".0x")) s.replace(".0x", "x") else s },
                                             color      = if (selected) NeonGreen else Color.White,
                                             fontSize   = 13.sp,
                                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
@@ -509,7 +594,6 @@ private fun PlayerControlsOverlay(
 }
 
 // ── YouTube fallback ───────────────────────────────────────────────────────────
-
 @Composable
 private fun YouTubeFallback(
     title: String,
@@ -541,7 +625,7 @@ private fun YouTubeFallback(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text       = "This lecture is hosted on YouTube. Tap below to watch it.",
+                text       = "This lecture is hosted on YouTube.\nTap below to watch it.",
                 color      = TextSecondary,
                 fontSize   = 13.sp,
                 textAlign  = TextAlign.Center,
@@ -597,7 +681,6 @@ private fun YouTubeFallback(
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
 private fun formatMs(ms: Long): String {
     val total = ms.coerceAtLeast(0L)
     val h = TimeUnit.MILLISECONDS.toHours(total)

@@ -58,4 +58,7 @@ data class Resource(
     fun hasPlayableUrl() = fileUrl.isNotEmpty()
 
     fun hasDownloadableUrl() = fileUrl.isNotEmpty() && !isYouTube() && !isLecture()
+
+    /** True when this resource is a PDF or notes file (not a lecture) */
+    fun isPdfResource() = !isLecture() && fileUrl.isNotEmpty()
 }

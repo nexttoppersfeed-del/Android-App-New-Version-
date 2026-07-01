@@ -1,1 +1,2 @@
 - [Next Toppers Feed — Prompt history](ntf-prompt-history.md) — Android Kotlin/Compose app; prompts add features incrementally, never rewrite architecture.
+- [NTF Phase 1 Resources Module](ntf-phase1-resources.md) — Folder hierarchy, scope-based filter pattern, PDF URL fallback, PiP, lecture resume, M2 gotcha.

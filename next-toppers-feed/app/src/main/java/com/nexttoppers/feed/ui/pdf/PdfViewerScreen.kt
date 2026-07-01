@@ -1,8 +1,6 @@
 package com.nexttoppers.feed.ui.pdf
 
-import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -32,13 +30,12 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Error
-import androidx.compose.material.icons.rounded.OpenInBrowser
-import androidx.compose.material.icons.rounded.ZoomIn
-import androidx.compose.material.icons.rounded.ZoomOut
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,13 +51,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -70,38 +66,40 @@ import kotlinx.coroutines.launch
 import com.nexttoppers.feed.ui.theme.BackgroundBlack
 import com.nexttoppers.feed.ui.theme.NeonCyan
 import com.nexttoppers.feed.ui.theme.NeonGreen
-import com.nexttoppers.feed.ui.theme.SurfaceCard
-import com.nexttoppers.feed.ui.theme.SurfaceDark
 import com.nexttoppers.feed.ui.theme.SurfaceElevated
 import com.nexttoppers.feed.ui.theme.TextMuted
 import com.nexttoppers.feed.ui.theme.TextPrimary
-import com.nexttoppers.feed.ui.theme.TextSecondary
 
 @Composable
 fun PdfViewerScreen(
     onBack: () -> Unit,
     viewModel: PdfViewerViewModel = hiltViewModel()
 ) {
-    val state       by viewModel.state.collectAsState()
-    val currentPage by viewModel.currentPage.collectAsState()
+    val state            by viewModel.state.collectAsState()
+    val currentPage      by viewModel.currentPage.collectAsState()
+    val downloadProgress by viewModel.downloadProgress.collectAsState()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0A0A0A))
+            .background(Color(0xFF0D0D0D))
     ) {
         when (val s = state) {
-            is PdfViewerState.Loading -> PdfLoadingState()
-            is PdfViewerState.Error   -> PdfErrorState(message = s.message, onBack = onBack)
-            is PdfViewerState.Ready   -> {
+            is PdfViewerState.Loading    -> PdfLoadingState()
+            is PdfViewerState.Downloading -> PdfDownloadingState(progress = downloadProgress)
+            is PdfViewerState.Error      -> PdfErrorState(message = s.message, onBack = onBack)
+            is PdfViewerState.Ready      -> {
                 PdfPager(
-                    pageCount   = s.pageCount,
-                    currentPage = currentPage,
-                    title       = viewModel.resourceTitle,
-                    fileUrl     = viewModel.fileUrl,
+                    pageCount    = s.pageCount,
+                    currentPage  = currentPage,
+                    title        = viewModel.resourceTitle,
+                    fileUrl      = viewModel.fileUrl,
                     onPageChange = viewModel::onPageChanged,
-                    renderPage  = viewModel::renderPage,
-                    onBack      = onBack
+                    renderPage   = viewModel::renderPage,
+                    onShare      = viewModel::sharePdf,
+                    onOpenExternal = viewModel::openInExternalApp,
+                    onBack       = onBack,
+                    fileSizeLabel = viewModel.getFileSizeLabel()
                 )
             }
         }
@@ -117,16 +115,16 @@ private fun PdfPager(
     fileUrl: String = "",
     onPageChange: (Int) -> Unit,
     renderPage: suspend (Int, Int) -> Bitmap?,
-    onBack: () -> Unit
+    onShare: () -> Unit,
+    onOpenExternal: () -> Unit,
+    onBack: () -> Unit,
+    fileSizeLabel: String = ""
 ) {
     val pagerState = rememberPagerState(pageCount = { pageCount })
     val scope      = rememberCoroutineScope()
-    val context    = LocalContext.current
 
-    // Keep ViewModel in sync
     LaunchedEffect(pagerState.currentPage) { onPageChange(pagerState.currentPage) }
 
-    // UI chrome visibility (tap to toggle)
     var chromeVisible by remember { mutableStateOf(true) }
 
     Box(Modifier.fillMaxSize()) {
@@ -139,28 +137,23 @@ private fun PdfPager(
                     detectTapGestures(onTap = { chromeVisible = !chromeVisible })
                 }
         ) { pageIndex ->
-            ZoomablePdfPage(
-                pageIndex  = pageIndex,
-                renderPage = renderPage
-            )
+            ZoomablePdfPage(pageIndex = pageIndex, renderPage = renderPage)
         }
 
         // ── Top chrome ────────────────────────────────────────────────────────
         AnimatedVisibility(
-            visible = chromeVisible,
-            enter   = fadeIn(tween(200)),
-            exit    = fadeOut(tween(200)),
+            visible  = chromeVisible,
+            enter    = fadeIn(tween(200)),
+            exit     = fadeOut(tween(200)),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        Brush.verticalGradient(
-                            listOf(BackgroundBlack.copy(0.95f), Color.Transparent)
-                        )
+                        Brush.verticalGradient(listOf(Color.Black.copy(0.92f), Color.Transparent))
                     )
-                    .padding(horizontal = 8.dp, vertical = 12.dp)
+                    .padding(horizontal = 8.dp, vertical = 10.dp)
                     .padding(top = 40.dp)
             ) {
                 Row(
@@ -169,41 +162,44 @@ private fun PdfPager(
                 ) {
                     IconButton(onClick = onBack) {
                         Box(
-                            Modifier
-                                .size(36.dp)
-                                .background(SurfaceElevated.copy(0.9f), RoundedCornerShape(50.dp)),
+                            Modifier.size(36.dp).background(Color.White.copy(0.12f), RoundedCornerShape(50.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Rounded.ArrowBack, null, tint = TextPrimary, modifier = Modifier.size(18.dp))
                         }
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        title,
-                        color  = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize   = 15.sp,
-                        maxLines   = 1,
-                        modifier   = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            title,
+                            color      = TextPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize   = 14.sp,
+                            maxLines   = 1
+                        )
+                        if (fileSizeLabel.isNotEmpty()) {
+                            Text(fileSizeLabel, color = TextMuted, fontSize = 11.sp)
+                        }
+                    }
+
+                    // Share button
+                    IconButton(onClick = onShare) {
+                        Box(
+                            Modifier.size(36.dp).background(Color.White.copy(0.12f), RoundedCornerShape(50.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Rounded.Share, contentDescription = "Share PDF", tint = NeonGreen, modifier = Modifier.size(18.dp))
+                        }
+                    }
+
+                    // Open external
                     if (fileUrl.isNotBlank()) {
-                        IconButton(onClick = {
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fileUrl)))
-                            }
-                        }) {
+                        IconButton(onClick = onOpenExternal) {
                             Box(
-                                Modifier
-                                    .size(36.dp)
-                                    .background(SurfaceElevated.copy(0.9f), RoundedCornerShape(50.dp)),
+                                Modifier.size(36.dp).background(Color.White.copy(0.12f), RoundedCornerShape(50.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    Icons.Rounded.OpenInBrowser,
-                                    contentDescription = "Open Original",
-                                    tint     = NeonGreen,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                Icon(Icons.Rounded.OpenInNew, contentDescription = "Open in App", tint = NeonCyan, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -222,18 +218,15 @@ private fun PdfPager(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, BackgroundBlack.copy(0.95f))
-                        )
+                        Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.92f)))
                     )
                     .padding(bottom = 32.dp, top = 24.dp, start = 16.dp, end = 16.dp)
             ) {
                 Row(
                     Modifier.fillMaxWidth(),
-                    verticalAlignment    = Alignment.CenterVertically,
+                    verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Prev
                     IconButton(
                         onClick  = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
                         enabled  = pagerState.currentPage > 0
@@ -241,8 +234,6 @@ private fun PdfPager(
                         Icon(Icons.Rounded.ChevronLeft, null,
                             tint = if (pagerState.currentPage > 0) NeonGreen else TextMuted)
                     }
-
-                    // Page counter pill
                     Box(
                         modifier = Modifier
                             .background(
@@ -259,8 +250,6 @@ private fun PdfPager(
                             fontSize   = 14.sp
                         )
                     }
-
-                    // Next
                     IconButton(
                         onClick  = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
                         enabled  = pagerState.currentPage < pageCount - 1
@@ -285,7 +274,6 @@ private fun ZoomablePdfPage(
     var scale     by remember { mutableFloatStateOf(1f) }
     var offset    by remember { mutableStateOf(Offset.Zero) }
 
-    // Render when width is known
     LaunchedEffect(pageIndex, viewWidth) {
         bitmap = renderPage(pageIndex, viewWidth)
     }
@@ -298,7 +286,6 @@ private fun ZoomablePdfPage(
                 detectTransformGestures { _, pan, zoom, _ ->
                     val newScale = (scale * zoom).coerceIn(1f, 5f)
                     scale  = newScale
-                    // Clamp panning within scaled content bounds
                     val maxX = (viewWidth * (scale - 1f) / 2f).coerceAtLeast(0f)
                     offset = Offset(
                         x = (offset.x + pan.x).coerceIn(-maxX, maxX),
@@ -316,42 +303,74 @@ private fun ZoomablePdfPage(
                 modifier           = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        scaleX        = scale
-                        scaleY        = scale
-                        translationX  = offset.x
-                        translationY  = offset.y
+                        scaleX       = scale
+                        scaleY       = scale
+                        translationX = offset.x
+                        translationY = offset.y
                     }
             )
         } else {
-            CircularProgressIndicator(color = NeonGreen, modifier = Modifier.size(36.dp), strokeWidth = 2.dp)
+            CircularProgressIndicator(
+                color       = NeonGreen,
+                modifier    = Modifier.size(36.dp),
+                strokeWidth = 2.dp
+            )
         }
     }
 }
 
-// ── Loading state ──────────────────────────────────────────────────────────────
+// ── Loading states ─────────────────────────────────────────────────────────────
 @Composable
 private fun PdfLoadingState() {
     Column(
         Modifier.fillMaxSize(),
-        horizontalAlignment   = Alignment.CenterHorizontally,
-        verticalArrangement   = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        CircularProgressIndicator(
-            color       = NeonGreen,
-            modifier    = Modifier.size(52.dp),
-            strokeWidth = 3.dp
-        )
+        CircularProgressIndicator(color = NeonGreen, modifier = Modifier.size(52.dp), strokeWidth = 3.dp)
         Spacer(Modifier.height(20.dp))
-        Text(
-            "Opening document…",
-            style = TextStyle(
-                color  = NeonGreen,
-                fontSize = 16.sp,
-                shadow = Shadow(NeonGreen.copy(0.5f), Offset.Zero, 10f)
-            )
-        )
+        Text("Opening document…", color = NeonGreen, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Spacer(Modifier.height(8.dp))
         Text("Please wait", color = TextMuted, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun PdfDownloadingState(progress: Int) {
+    Column(
+        Modifier.fillMaxSize().padding(horizontal = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Loading PDF", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Spacer(Modifier.height(8.dp))
+        Text("Fetching document from server…", color = TextMuted, fontSize = 13.sp, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(24.dp))
+
+        val animatedProgress by animateFloatAsState(
+            targetValue   = progress / 100f,
+            animationSpec = tween(300),
+            label         = "pdf_download_progress"
+        )
+
+        if (progress > 0) {
+            LinearProgressIndicator(
+                progress  = { animatedProgress },
+                modifier  = Modifier.fillMaxWidth().height(6.dp),
+                color     = NeonGreen,
+                trackColor = NeonGreen.copy(0.2f),
+                strokeCap  = StrokeCap.Round
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("$progress%", color = NeonGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        } else {
+            LinearProgressIndicator(
+                modifier   = Modifier.fillMaxWidth().height(6.dp),
+                color      = NeonGreen,
+                trackColor = NeonGreen.copy(0.2f),
+                strokeCap  = StrokeCap.Round
+            )
+        }
     }
 }
 
@@ -360,14 +379,14 @@ private fun PdfLoadingState() {
 private fun PdfErrorState(message: String, onBack: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment   = Alignment.CenterHorizontally,
-        verticalArrangement   = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Icon(Icons.Rounded.Error, null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(64.dp))
         Spacer(Modifier.height(16.dp))
         Text("Cannot open PDF", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Spacer(Modifier.height(8.dp))
-        Text(message, color = TextSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
+        Text(message, color = TextMuted, fontSize = 13.sp, textAlign = TextAlign.Center)
         Spacer(Modifier.height(28.dp))
         Box(
             modifier = Modifier

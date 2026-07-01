@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- DownloadManager offline files -->
     <external-files-path name="ntf_downloads" path="Downloads/"/>
+    <!-- PDF viewer temp cache (for share / open-external) -->
+    <cache-path name="pdf_cache" path="pdf_cache/"/>
+    <!-- Fallback: entire cache dir -->
+    <cache-path name="ntf_cache" path="."/>
 </paths>
