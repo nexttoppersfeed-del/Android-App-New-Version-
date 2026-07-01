@@ -101,7 +101,7 @@ class QuizHomeViewModel @Inject constructor(
     }
 
     fun isAttempted(quizId: String): Boolean =
-        history.any { it.quizId == quizId }
+        history.any { it.testId == quizId }
 
     fun refresh() { load() }
 }
