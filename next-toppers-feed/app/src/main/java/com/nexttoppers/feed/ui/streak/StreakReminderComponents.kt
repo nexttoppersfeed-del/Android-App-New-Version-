@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -85,7 +88,7 @@ fun StreakWarningCard(
             )
             Column(Modifier.weight(1f)) {
                 Text(
-                    "🔥 $streak-Day Streak at Risk!",
+                    "$streak-Day Streak at Risk!",
                     color      = ErrorRed,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize   = 14.sp
@@ -125,7 +128,7 @@ fun MissedStreakDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("💔", fontSize = 52.sp, textAlign = TextAlign.Center)
+                Icon(Icons.Rounded.LocalFireDepartment, null, tint = ErrorRed.copy(0.4f), modifier = Modifier.size(52.dp))
                 Text(
                     "Streak Broken",
                     color      = ErrorRed,
@@ -145,8 +148,8 @@ fun MissedStreakDialog(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    StreakStatChip("🔥", "Previous", "$previousStreak days", ErrorRed)
-                    StreakStatChip("⚡", "New Goal", "${previousStreak + 1} days", NeonGreen)
+                    StreakStatChip(Icons.Rounded.LocalFireDepartment, "Previous", "$previousStreak days", ErrorRed)
+                    StreakStatChip(Icons.Rounded.Bolt, "New Goal", "${previousStreak + 1} days", NeonGreen)
                 }
                 // Restart button
                 Box(
@@ -170,7 +173,7 @@ fun MissedStreakDialog(
 }
 
 @Composable
-private fun StreakStatChip(emoji: String, label: String, value: String, color: Color) {
+private fun StreakStatChip(icon: ImageVector, label: String, value: String, color: Color) {
     Column(
         modifier            = Modifier
             .clip(RoundedCornerShape(12.dp))
@@ -180,7 +183,7 @@ private fun StreakStatChip(emoji: String, label: String, value: String, color: C
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Text(emoji, fontSize = 18.sp)
+        Icon(icon, null, tint = color, modifier = Modifier.size(18.dp))
         Text(value, color = color, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
         Text(label, color = TextMuted, fontSize = 10.sp)
     }
@@ -201,7 +204,7 @@ fun StreakRestoreCard(
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("🛡️", fontSize = 28.sp)
+            Icon(Icons.Rounded.Security, null, tint = PremiumGold, modifier = Modifier.size(28.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     "Streak Shield Available",
@@ -232,11 +235,11 @@ fun MotivationalReminderCard(
     modifier: Modifier = Modifier
 ) {
     val msg = when {
-        streak == 0  -> "🚀 Start your first day streak today — every champion starts at day 1!"
-        streak < 7   -> "💪 Day $streak! Keep going — 7-day milestone is almost here!"
-        streak < 30  -> "🔥 $streak days strong! You're building incredible habits."
-        streak < 100 -> "⚡ $streak-day streak — you're a study machine!"
-        else         -> "👑 $streak days! You are a Next Topper legend."
+        streak == 0  -> "Start your first day streak today — every champion starts at day 1!"
+        streak < 7   -> "Day $streak! Keep going — 7-day milestone is almost here!"
+        streak < 30  -> "$streak days strong! You're building incredible habits."
+        streak < 100 -> "$streak-day streak — you're a study machine!"
+        else         -> "$streak days! You are a Next Topper legend."
     }
     Box(
         modifier = modifier

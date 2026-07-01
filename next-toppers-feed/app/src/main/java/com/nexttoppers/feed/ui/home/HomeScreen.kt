@@ -26,14 +26,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -258,23 +265,25 @@ private fun HomeContent(
 }
 
 // ── Subjects grid ──────────────────────────────────────────────────────────────
+private data class SubjectItem(val key: String, val label: String, val icon: ImageVector, val color: Color)
+
 @Composable
 private fun SubjectsGrid(onNavigateToSubject: (String) -> Unit) {
     val subjects = listOf(
-        Triple("MATHS",   "Maths",   "📐"),
-        Triple("SCIENCE", "Science", "🔬"),
-        Triple("SST",     "SST",     "🌍"),
-        Triple("ENGLISH", "English", "📖"),
-        Triple("HINDI",   "Hindi",   "🇮🇳")
+        SubjectItem("MATHS",   "Maths",   Icons.Rounded.Calculate, AccentBlue),
+        SubjectItem("SCIENCE", "Science", Icons.Rounded.Science,   AccentEmerald),
+        SubjectItem("SST",     "SST",     Icons.Rounded.Public,    AccentViolet),
+        SubjectItem("ENGLISH", "English", Icons.Rounded.MenuBook,  PremiumGold),
+        SubjectItem("HINDI",   "Hindi",   Icons.Rounded.Translate, AccentCyan)
     )
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        subjects.forEach { (key, label, emoji) ->
+        subjects.forEach { subject ->
             Column(
                 modifier = Modifier
-                    .clickable { onNavigateToSubject(key) }
+                    .clickable { onNavigateToSubject(subject.key) }
                     .padding(4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -282,13 +291,13 @@ private fun SubjectsGrid(onNavigateToSubject: (String) -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(52.dp)
-                        .background(NeonGreen.copy(0.10f), RoundedCornerShape(14.dp))
-                        .border(1.dp, NeonGreen.copy(0.25f), RoundedCornerShape(14.dp)),
+                        .background(subject.color.copy(0.12f), RoundedCornerShape(14.dp))
+                        .border(1.dp, subject.color.copy(0.28f), RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(emoji, fontSize = 22.sp)
+                    Icon(subject.icon, null, tint = subject.color, modifier = Modifier.size(24.dp))
                 }
-                Text(label, fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
+                Text(subject.label, fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -463,22 +472,22 @@ private fun HeroStatsCard(user: User, rank: Int) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                HomeStatChip(value = "${user.xp}", label = "XP Earned",    icon = "⚡", color = AccentCyan)
-                HomeStatChip(value = "${user.streak}", label = "Day Streak", icon = "🔥", color = PremiumGold)
-                HomeStatChip(value = "#$rank",  label = "Global Rank",    icon = "🏆", color = AccentBlue)
+                HomeStatChip(value = "${user.xp}", label = "XP Earned",    icon = Icons.Rounded.Bolt,                color = AccentCyan)
+                HomeStatChip(value = "${user.streak}", label = "Day Streak", icon = Icons.Rounded.LocalFireDepartment, color = PremiumGold)
+                HomeStatChip(value = "#$rank",  label = "Global Rank",    icon = Icons.Rounded.EmojiEvents,          color = AccentBlue)
             }
         }
     }
 }
 
 @Composable
-private fun HomeStatChip(value: String, label: String, icon: String, color: Color) {
+private fun HomeStatChip(value: String, label: String, icon: ImageVector, color: Color) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(icon, fontSize = 13.sp)
+            Icon(icon, null, tint = color, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(3.dp))
             Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = color)
         }
@@ -567,8 +576,15 @@ private fun LeaderboardPreviewSection(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val medals = listOf("🥇", "🥈", "🥉")
-                        Text(medals[idx], fontSize = 18.sp)
+                        val medalColors = listOf(PremiumGold, Color(0xFFC0C0C0), Color(0xFFCD7F32))
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(medalColors[idx].copy(0.15f), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("#${idx + 1}", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = medalColors[idx])
+                        }
                         Spacer(Modifier.width(10.dp))
                         Box(
                             modifier = Modifier
@@ -626,7 +642,14 @@ private fun MotivationalCard(user: User) {
     val xpToNext = LevelUtils.xpForNextLevel(user.level) - user.xp
     NtfCard(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🎯", fontSize = 22.sp)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(AccentCyan.copy(0.12f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Rounded.TrackChanges, null, tint = AccentCyan, modifier = Modifier.size(20.dp))
+            }
             Spacer(Modifier.width(12.dp))
             Column {
                 Text("Keep it up!", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)

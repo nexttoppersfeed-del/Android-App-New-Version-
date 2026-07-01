@@ -364,7 +364,7 @@ private fun PendingRequestsBanner(count: Int, onClick: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                "🔔 $count Premium Request${if (count > 1) "s" else ""} Pending",
+                "$count Premium Request${if (count > 1) "s" else ""} Pending",
                 color = AdminRed, fontWeight = FontWeight.Bold, fontSize = 13.sp
             )
             Text("Tap to review & approve", color = TextMuted, fontSize = 11.sp)

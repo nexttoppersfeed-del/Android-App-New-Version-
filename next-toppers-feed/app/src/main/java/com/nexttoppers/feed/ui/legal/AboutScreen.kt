@@ -198,7 +198,7 @@ fun AboutScreen(onBack: () -> Unit) {
                             .padding(18.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("🎯 Our Mission", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text("Our Mission", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Text(
                                 "Next Toppers Feed is built to make quality education accessible to every student. We combine curated study resources, gamified learning (XP, streaks, leaderboards), and an active community to help you reach your full potential.",
                                 color = TextSecondary, fontSize = 13.sp, lineHeight = 20.sp

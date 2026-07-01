@@ -348,7 +348,7 @@ private fun ResourceDetailContent(
                     // "Read PDF" — offline version (downloaded)
                     if (!localPath.isNullOrEmpty()) {
                         ActionButton(
-                            text    = "📖 Read PDF  (Offline)",
+                            text    = "Read PDF (Offline)",
                             color   = NeonGreen,
                             enabled = true,
                             onClick = { onOpenPdf(localPath) }
@@ -356,7 +356,7 @@ private fun ResourceDetailContent(
                     } else if (resource.fileUrl.isNotEmpty() && resource.isPdfResource()) {
                         // "Open PDF" — stream from URL even when not downloaded
                         ActionButton(
-                            text    = "📖 Open PDF",
+                            text    = "Open PDF",
                             color   = NeonGreen,
                             enabled = true,
                             onClick = { onOpenPdf("") }   // PdfViewerViewModel uses fileUrl
@@ -366,7 +366,7 @@ private fun ResourceDetailContent(
                     // "Open in Browser" — always available as secondary option
                     if (resource.fileUrl.isNotEmpty()) {
                         ActionButton(
-                            text    = "🌐 Open in Browser",
+                            text    = "Open in Browser",
                             color   = NeonCyan,
                             enabled = true,
                             outlined = true,

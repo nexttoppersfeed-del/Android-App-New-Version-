@@ -121,7 +121,7 @@ fun TestsScreen(
                         Icon(Icons.Rounded.ArrowBack, null, tint = TextSecondary)
                     }
                     Spacer(Modifier.width(6.dp))
-                    Text("🧪", fontSize = 22.sp)
+                    Icon(Icons.Rounded.Quiz, null, tint = AccentViolet, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(
                         "Tests",
@@ -290,7 +290,7 @@ private fun TestCard(test: NtfTest, attempt: TestAttempt?, onClick: () -> Unit) 
                         .background(AccentViolet.copy(0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🧪", fontSize = 18.sp)
+                    Icon(Icons.Rounded.Quiz, null, tint = AccentViolet, modifier = Modifier.size(20.dp))
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(

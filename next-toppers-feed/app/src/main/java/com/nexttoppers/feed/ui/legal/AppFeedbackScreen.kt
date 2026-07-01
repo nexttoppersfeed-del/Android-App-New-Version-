@@ -133,7 +133,7 @@ fun AppFeedbackScreen(onBack: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("⭐", fontSize = 48.sp)
+                    Icon(Icons.Rounded.Star, null, tint = PremiumGold, modifier = Modifier.size(48.dp))
                     Text(
                         "How's your experience?",
                         color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp,
@@ -282,7 +282,7 @@ private fun ratingLabel(r: Int) = when (r) {
     2 -> "Needs improvement"
     3 -> "It's okay"
     4 -> "Pretty good! 😊"
-    5 -> "Absolutely love it! ⭐"
+    5 -> "Absolutely love it!"
     else -> ""
 }
 

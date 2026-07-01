@@ -275,7 +275,7 @@ fun XpRewardChip(xp: Int, accentColor: Color = NeonGreen, large: Boolean = false
             .padding(horizontal = if (large) 10.dp else 7.dp, vertical = if (large) 4.dp else 2.dp)
     ) {
         Text(
-            "⚡ +$xp XP",
+            "+$xp XP",
             color = accentColor,
             fontSize = if (large) 12.sp else 10.sp,
             fontWeight = FontWeight.Bold

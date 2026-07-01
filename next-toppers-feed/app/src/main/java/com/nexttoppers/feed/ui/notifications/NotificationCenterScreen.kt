@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -119,7 +120,7 @@ fun NotificationCenterScreen(
             is NotificationUiState.Error -> {
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("⚠️", fontSize = 40.sp)
+                        Icon(Icons.Rounded.Warning, null, tint = TextSecondary, modifier = Modifier.size(40.dp))
                         Text(state.message, color = TextSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
                     }
                 }

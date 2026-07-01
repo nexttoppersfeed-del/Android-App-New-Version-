@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Star
@@ -271,10 +272,10 @@ fun StreakCard(streak: Int, modifier: Modifier = Modifier) {
             }
             Text(
                 when {
-                    streak == 0 -> "Start your streak today! 🚀"
-                    streak < 7  -> "Keep going — 7-day streak rewards await! 🎯"
-                    streak < 30 -> "Blazing! 30-day legend milestone ahead 🔥"
-                    else        -> "Legendary streak! You're unstoppable 👑"
+                    streak == 0 -> "Start your streak today!"
+                    streak < 7  -> "Keep going — 7-day streak rewards await!"
+                    streak < 30 -> "Blazing! 30-day legend milestone ahead"
+                    else        -> "Legendary streak! You're unstoppable"
                 },
                 color      = streakColor.copy(0.8f),
                 fontSize   = 11.sp,
@@ -314,7 +315,15 @@ fun RankCard(rank: Int, xp: Long, modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (rank in 1..3) {
-                    Text(LevelUtils.rankBadgeEmoji(rank), fontSize = 32.sp)
+                    val medalColors = listOf(PremiumGold, Color(0xFFC0C0C0), Color(0xFFCD7F32))
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(medalColors[rank - 1].copy(0.15f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("#$rank", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = medalColors[rank - 1])
+                    }
                 } else {
                     Text(
                         if (rank > 0) "#$rank" else "–",
@@ -371,7 +380,15 @@ fun LevelUpDialog(newLevel: Int, onDismiss: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text("⚡", fontSize = 52.sp)
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(NeonGreen.copy(0.12f), RoundedCornerShape(20.dp))
+                            .border(1.5.dp, NeonGreen.copy(0.35f), RoundedCornerShape(20.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Rounded.Bolt, null, tint = NeonGreen, modifier = Modifier.size(42.dp))
+                    }
 
                     Text(
                         "LEVEL UP!",
@@ -417,7 +434,7 @@ fun LevelUpDialog(newLevel: Int, onDismiss: () -> Unit) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "Awesome! 🎉",
+                            "Awesome!",
                             color      = NeonGreen,
                             fontWeight = FontWeight.Bold,
                             fontSize   = 15.sp

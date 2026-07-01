@@ -137,7 +137,7 @@ fun PremiumFilterChips(
     ) {
         FilterChip("All", premiumFilter == null, NeonGreen) { onFilterSelected(null) }
         FilterChip("Free", premiumFilter == false, Color(0xFF80CBC4)) { onFilterSelected(if (premiumFilter == false) null else false) }
-        FilterChip("⭐ Pro", premiumFilter == true, Color(0xFFFFD700)) { onFilterSelected(if (premiumFilter == true) null else true) }
+        FilterChip("Pro", premiumFilter == true, Color(0xFFFFD700)) { onFilterSelected(if (premiumFilter == true) null else true) }
     }
 }
 

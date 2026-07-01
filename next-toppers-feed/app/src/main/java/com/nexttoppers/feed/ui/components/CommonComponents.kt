@@ -22,9 +22,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -232,14 +235,14 @@ fun PulsingDot(color: Color = NeonGreen, size: Dp = 10.dp) {
 fun XpBadge(xp: Long, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .background(Brush.linearGradient(listOf(NeonGreen.copy(0.2f), NeonCyan.copy(0.2f))), RoundedCornerShape(50.dp))
-            .border(1.dp, NeonGreen.copy(0.5f), RoundedCornerShape(50.dp))
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .background(Brush.linearGradient(listOf(NeonGreen.copy(0.15f), NeonCyan.copy(0.15f))), RoundedCornerShape(50.dp))
+            .border(1.dp, NeonGreen.copy(0.45f), RoundedCornerShape(50.dp))
+            .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("⚡", fontSize = 14.sp)
+            Icon(Icons.Rounded.Bolt, null, tint = NeonGreen, modifier = Modifier.size(13.dp))
             Spacer(Modifier.width(4.dp))
-            Text("$xp XP", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text("$xp XP", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
     }
 }

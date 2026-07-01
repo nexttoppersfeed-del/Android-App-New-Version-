@@ -26,7 +26,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.CircularProgressIndicator
@@ -169,10 +173,10 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                FeatureTile(emoji = "📚", label = "Notes",       accentColor = AccentCyan)
-                FeatureTile(emoji = "🏆", label = "Leaderboard", accentColor = AccentEmerald)
-                FeatureTile(emoji = "💬", label = "Study Chats", accentColor = AccentViolet)
-                FeatureTile(emoji = "🧪", label = "Tests",       accentColor = AccentCyan)
+                FeatureTile(icon = Icons.Rounded.AutoStories, label = "Notes",       accentColor = AccentCyan)
+                FeatureTile(icon = Icons.Rounded.EmojiEvents, label = "Leaderboard", accentColor = AccentEmerald)
+                FeatureTile(icon = Icons.Rounded.Forum,       label = "Study Chats", accentColor = AccentViolet)
+                FeatureTile(icon = Icons.Rounded.Quiz,        label = "Tests",       accentColor = AccentCyan)
             }
 
             Spacer(Modifier.height(28.dp))
@@ -282,7 +286,7 @@ private fun PulsingLogoSection() {
 }
 
 @Composable
-private fun FeatureTile(emoji: String, label: String, accentColor: Color) {
+private fun FeatureTile(icon: ImageVector, label: String, accentColor: Color) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -290,11 +294,11 @@ private fun FeatureTile(emoji: String, label: String, accentColor: Color) {
         Box(
             modifier = Modifier
                 .size(60.dp)
-                .background(SurfaceCard, RoundedCornerShape(16.dp))
-                .border(1.dp, accentColor.copy(0.25f), RoundedCornerShape(16.dp)),
+                .background(accentColor.copy(0.10f), RoundedCornerShape(16.dp))
+                .border(1.dp, accentColor.copy(0.28f), RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text(emoji, fontSize = 26.sp)
+            Icon(icon, null, tint = accentColor, modifier = Modifier.size(26.dp))
         }
         Text(label, color = TextSecondary, fontSize = 11.sp, textAlign = TextAlign.Center)
         // Colored underline dot
@@ -421,7 +425,7 @@ private fun SocialProofSection() {
         // Stars
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             repeat(5) {
-                Text("⭐", fontSize = 13.sp)
+                Icon(Icons.Rounded.Star, null, tint = PremiumGold, modifier = Modifier.size(14.dp))
             }
         }
     }

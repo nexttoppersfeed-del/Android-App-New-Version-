@@ -20,11 +20,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Translate
@@ -142,7 +144,14 @@ fun ResourcesScreen(
                                         lineHeight = 18.sp
                                     )
                                 }
-                                Text("🎓", fontSize = 48.sp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .background(NeonGreen.copy(0.10f), RoundedCornerShape(16.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Rounded.School, null, tint = NeonGreen, modifier = Modifier.size(32.dp))
+                                }
                             }
                         }
                     }
@@ -327,7 +336,14 @@ private fun FreeResourcesBanner() {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("📗", fontSize = 28.sp)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(NeonGreen.copy(0.12f), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Rounded.AutoStories, null, tint = NeonGreen, modifier = Modifier.size(22.dp))
+        }
         Spacer(Modifier.width(12.dp))
         Column {
             Text(

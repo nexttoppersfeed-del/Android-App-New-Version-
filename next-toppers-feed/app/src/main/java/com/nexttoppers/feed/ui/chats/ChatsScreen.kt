@@ -564,7 +564,7 @@ private fun EmptyChatList() {
                 .border(1.dp, AccentCyan.copy(0.2f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text("💬", fontSize = 36.sp)
+            Icon(Icons.Rounded.Forum, null, tint = AccentCyan, modifier = Modifier.size(38.dp))
         }
         Spacer(Modifier.height(20.dp))
         Text("No conversations yet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)

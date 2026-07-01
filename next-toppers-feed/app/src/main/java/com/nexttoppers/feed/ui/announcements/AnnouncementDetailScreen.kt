@@ -411,7 +411,7 @@ private fun AnnouncementDetailContent(
                 ) {
 
                     Text(
-                        "👥 For: ${
+                        "For: ${
                             announcement.targetAudience
                                 .replaceFirstChar {
                                     it.uppercase()

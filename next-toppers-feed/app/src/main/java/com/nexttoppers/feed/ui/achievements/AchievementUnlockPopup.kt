@@ -47,11 +47,18 @@ import com.nexttoppers.feed.ui.theme.SurfaceCard
 import com.nexttoppers.feed.ui.theme.TextMuted
 import com.nexttoppers.feed.ui.theme.TextPrimary
 import com.nexttoppers.feed.ui.theme.TextSecondary
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.material.icons.rounded.TrendingUp
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
 import kotlin.random.Random
 
 // ── Data class for achievement popup payload ───────────────────────────────────
 data class AchievementUnlockData(
-    val emoji: String,
+    val icon: ImageVector,
     val title: String,
     val description: String,
     val xpReward: Long = 0L
@@ -122,7 +129,7 @@ fun AchievementUnlockPopup(
                         .scale(badgeScale),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(achievement.emoji, fontSize = 48.sp)
+                    Icon(achievement.icon, null, tint = PremiumGold, modifier = Modifier.size(48.dp))
                 }
 
                 // Headline
@@ -159,7 +166,7 @@ fun AchievementUnlockPopup(
                             .border(1.dp, NeonGreen.copy(0.4f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
-                        Text("⚡ +${achievement.xpReward} XP Bonus", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("+${achievement.xpReward} XP Bonus", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
 
@@ -173,7 +180,7 @@ fun AchievementUnlockPopup(
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Awesome! 🎉", color = BackgroundBlack, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                    Text("Awesome!", color = BackgroundBlack, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
                 }
 
                 Text("Tap anywhere to dismiss", color = TextMuted, fontSize = 10.sp)
@@ -206,28 +213,28 @@ private fun DrawScope.drawAchievParticle(p: AchievParticle, tick: Float, w: Floa
 // ── Predefined common achievements ────────────────────────────────────────────
 object CommonAchievements {
     fun streak(days: Int) = AchievementUnlockData(
-        emoji       = "🔥",
+        icon        = Icons.Rounded.LocalFireDepartment,
         title       = "$days-Day Streak!",
         description = "You studied $days days in a row. Keep it up, topper!",
         xpReward    = days.toLong() * 5
     )
 
     fun level(level: Int) = AchievementUnlockData(
-        emoji       = "⬆️",
+        icon        = Icons.Rounded.TrendingUp,
         title       = "Level $level Reached!",
         description = "You've levelled up to Level $level through hard work and dedication.",
         xpReward    = 0L
     )
 
     fun quizzes(count: Int) = AchievementUnlockData(
-        emoji       = "🎯",
+        icon        = Icons.Rounded.TrackChanges,
         title       = "$count Quizzes Completed!",
         description = "You've completed $count quizzes and strengthened your knowledge.",
         xpReward    = 50L
     )
 
     fun rank(rank: Int) = AchievementUnlockData(
-        emoji       = "🏆",
+        icon        = Icons.Rounded.EmojiEvents,
         title       = "Top $rank on Leaderboard!",
         description = "You've climbed to #$rank on the leaderboard. You're crushing it!",
         xpReward    = 0L

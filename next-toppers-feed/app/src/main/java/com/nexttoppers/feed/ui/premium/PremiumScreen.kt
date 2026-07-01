@@ -29,8 +29,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,6 +46,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -493,7 +502,7 @@ private fun PremiumHeroSection(membership: PremiumMembership, modifier: Modifier
                 .border(2.dp, Brush.linearGradient(listOf(PremiumGold.copy(0.6f), PremiumViolet.copy(0.4f))), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text("👑", fontSize = 52.sp, modifier = Modifier.padding(top = 4.dp))
+            Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(52.dp))
         }
 
         if (!membership.isActive) {
@@ -514,7 +523,7 @@ private fun PremiumHeroSection(membership: PremiumMembership, modifier: Modifier
             )
         } else {
             Text(
-                "You're Premium 🎉",
+                "You're Premium!",
                 style = TextStyle(
                     fontSize   = 26.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -546,15 +555,15 @@ private fun BenefitsSection(modifier: Modifier = Modifier) {
     ) {
         Text("Premium Benefits", color = TextPrimary, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
         val benefits = listOf(
-            Triple("📚", "Unlimited Notes", "Access all premium study notes instantly"),
-            Triple("🎯", "Exclusive Quizzes", "Practise with chapter-wise advanced tests"),
-            Triple("📥", "Priority Downloads", "Faster PDF downloads with no limits"),
-            Triple("🏆", "Leaderboard Badge", "Stand out with a gold VIP rank badge"),
-            Triple("🚫", "Ad-Free Experience", "Zero ads — zero distractions"),
-            Triple("⚡", "Early Access", "Get new resources before everyone else")
+            Triple(Icons.Rounded.AutoStories, "Unlimited Notes",   "Access all premium study notes instantly"),
+            Triple(Icons.Rounded.Quiz,        "Exclusive Quizzes", "Practise with chapter-wise advanced tests"),
+            Triple(Icons.Rounded.Download,    "Priority Downloads","Faster PDF downloads with no limits"),
+            Triple(Icons.Rounded.EmojiEvents, "Leaderboard Badge", "Stand out with a gold VIP rank badge"),
+            Triple(Icons.Rounded.Block,       "Ad-Free Experience","Zero ads — zero distractions"),
+            Triple(Icons.Rounded.Bolt,        "Early Access",      "Get new resources before everyone else")
         )
-        benefits.forEach { (emoji, title, subtitle) ->
-            PremiumBenefitItem(emoji = emoji, title = title, subtitle = subtitle)
+        benefits.forEach { (icon, title, subtitle) ->
+            PremiumBenefitItem(icon = icon, title = title, subtitle = subtitle)
         }
     }
 }
@@ -624,7 +633,7 @@ private fun PurchaseButton(
         }
 
         Text(
-            "🔒 Secure UPI payment · Admin verification · Instant unlock after approval",
+            "Secure UPI payment · Admin verification · Instant unlock after approval",
             color     = TextMuted,
             fontSize  = 11.sp,
             textAlign = TextAlign.Center,

@@ -335,7 +335,7 @@ fun PremiumGateCard(onUpgrade: () -> Unit, modifier: Modifier = Modifier) {
                     .border(1.dp, Color(0xFFFFD700).copy(0.45f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 22.dp, vertical = 11.dp)
             ) {
-                Text("Upgrade Now ✨", color = Color(0xFFFFD700), fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                Text("Upgrade Now", color = Color(0xFFFFD700), fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
             }
         }
     }

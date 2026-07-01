@@ -52,6 +52,9 @@ import com.nexttoppers.feed.ui.theme.PremiumViolet
 import com.nexttoppers.feed.ui.theme.SurfaceCard
 import com.nexttoppers.feed.ui.theme.TextPrimary
 import com.nexttoppers.feed.ui.theme.TextSecondary
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.material3.Icon
 import kotlin.random.Random
 
 // ── Upgrade Success Screen ─────────────────────────────────────────────────────
@@ -122,7 +125,7 @@ fun UpgradeSuccessContent(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Animated crown
-            Text("👑", fontSize = 80.sp, modifier = Modifier.scale(crownScale))
+            Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(80.dp).scale(crownScale))
 
             // Headline
             Text(
@@ -173,7 +176,7 @@ fun UpgradeSuccessContent(
                         }
                     }
                     val expiryText = when (membership.type) {
-                        MembershipType.LIFETIME -> "Lifetime Access — Never Expires 🚀"
+                        MembershipType.LIFETIME -> "Lifetime Access — Never Expires"
                         else -> "${membership.daysRemaining} days remaining"
                     }
                     Text(expiryText, color = TextSecondary, fontSize = 13.sp)

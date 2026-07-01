@@ -118,7 +118,7 @@ fun CommunityPostDetailScreen(
                 item {
                     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("💬", fontSize = 32.sp)
+                            Icon(Icons.Rounded.ChatBubbleOutline, null, tint = TextSecondary, modifier = Modifier.size(32.dp))
                             Spacer(Modifier.height(8.dp))
                             Text("No comments yet. Be first!", color = TextSecondary, fontSize = 13.sp)
                         }

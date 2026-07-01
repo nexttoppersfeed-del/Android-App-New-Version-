@@ -259,7 +259,7 @@ fun EmptyNotificationsState(onSeedClick: (() -> Unit)? = null, modifier: Modifie
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("🔔", fontSize = 56.sp)
+        Icon(Icons.Rounded.NotificationsNone, null, tint = TextSecondary, modifier = Modifier.size(56.dp))
         Text("No notifications", color = TextSecondary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         Text("You're all caught up!", color = TextMuted, fontSize = 13.sp)
         if (onSeedClick != null) {

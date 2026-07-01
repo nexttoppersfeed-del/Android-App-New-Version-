@@ -15,6 +15,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -231,10 +236,7 @@ fun ActivityFeedCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
 
-                        Text(
-                            text = "⚡",
-                            fontSize = 10.sp
-                        )
+                        Icon(Icons.Rounded.Bolt, null, tint = NeonGreen, modifier = Modifier.size(10.dp))
 
                         Text(
                             text = "+${item.xpEarned} XP",
@@ -360,9 +362,11 @@ fun EmptyFeedState(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
-        Text(
-            text = if (isPersonal) "📖" else "🌐",
-            fontSize = 56.sp
+        Icon(
+            if (isPersonal) Icons.Rounded.MenuBook else Icons.Rounded.Public,
+            null,
+            tint     = TextSecondary,
+            modifier = Modifier.size(56.dp)
         )
 
         Text(

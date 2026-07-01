@@ -22,11 +22,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Diamond
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,11 +74,17 @@ private fun badgeColors(badge: MembershipBadge): List<Color> = when (badge) {
     else                         -> listOf(PremiumGold, PremiumGoldDim)
 }
 
-private fun badgeEmoji(badge: MembershipBadge): String = when (badge) {
-    MembershipBadge.LIFETIME     -> "💎"
-    MembershipBadge.VIP          -> "👑"
-    MembershipBadge.EARLY_MEMBER -> "⚡"
-    else                         -> "⭐"
+private fun badgeIcon(badge: MembershipBadge): ImageVector = when (badge) {
+    MembershipBadge.LIFETIME     -> Icons.Rounded.Diamond
+    MembershipBadge.VIP          -> Icons.Rounded.WorkspacePremium
+    MembershipBadge.EARLY_MEMBER -> Icons.Rounded.Bolt
+    else                         -> Icons.Rounded.Star
+}
+
+@Composable
+private fun BadgeIcon(badge: MembershipBadge, modifier: Modifier = Modifier) {
+    val colors = badgeColors(badge)
+    Icon(badgeIcon(badge), null, tint = colors.first(), modifier = modifier)
 }
 
 // ── PremiumBadge — animated glowing badge ─────────────────────────────────────
@@ -109,7 +117,7 @@ fun PremiumBadge(
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(badgeEmoji(badge), fontSize = 11.sp)
+        BadgeIcon(badge, modifier = Modifier.size(12.dp))
         Text(
             badge.label,
             color      = colors.first(),
@@ -166,13 +174,13 @@ fun PremiumBannerCard(
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "${badgeEmoji(membership.badge)} ${membership.badge.label.ifEmpty { "PREMIUM" }} MEMBER",
+                        "${membership.badge.label.ifEmpty { "PREMIUM" }} MEMBER",
                         color      = colors.first(),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize   = 14.sp
                     )
                     val sub = when (membership.type) {
-                        MembershipType.LIFETIME -> "Lifetime access — all features unlocked 🚀"
+                        MembershipType.LIFETIME -> "Lifetime access — all features unlocked"
                         else -> if (membership.daysRemaining > 0)
                             "${membership.daysRemaining} days remaining • All features unlocked"
                         else "All features unlocked"
@@ -206,7 +214,14 @@ fun PremiumBannerCard(
                 .padding(18.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("👑", fontSize = 26.sp)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(PremiumGold.copy(0.12f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(26.dp))
+                }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -412,7 +427,7 @@ fun MembershipPlanCard(
             // Header row: name + recommended/savings badge
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(badgeEmoji(plan.badge), fontSize = 18.sp)
+                    BadgeIcon(plan.badge, modifier = Modifier.size(20.dp))
                     Text(
                         plan.type.displayName,
                         color      = if (isSelected) badgeColors.first() else TextPrimary,
@@ -481,7 +496,7 @@ fun MembershipPlanCard(
 // ── PremiumBenefitItem — individual benefit row ───────────────────────────────
 @Composable
 fun PremiumBenefitItem(
-    emoji: String,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier
@@ -498,7 +513,7 @@ fun PremiumBenefitItem(
                 .border(1.dp, PremiumGold.copy(0.3f), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text(emoji, fontSize = 18.sp)
+            Icon(icon, null, tint = PremiumGold, modifier = Modifier.size(20.dp))
         }
         Column {
             Text(title, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -530,7 +545,15 @@ fun UpgradeDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("👑", fontSize = 48.sp, textAlign = TextAlign.Center)
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(PremiumGold.copy(0.12f), RoundedCornerShape(22.dp))
+                        .border(1.5.dp, Brush.linearGradient(listOf(PremiumGold, PremiumViolet)), RoundedCornerShape(22.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(48.dp))
+                }
                 Text(
                     "Premium Content",
                     color      = PremiumGold,
@@ -547,7 +570,7 @@ fun UpgradeDialog(
                 )
                 // Benefits preview
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("📚 All premium notes", "🎯 Exclusive quizzes & tests", "📥 Priority downloads").forEach { benefit ->
+                    listOf("All premium notes", "Exclusive quizzes & tests", "Priority downloads").forEach { benefit ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Rounded.CheckCircle, null, tint = NeonGreen, modifier = Modifier.size(16.dp))
                             Text(benefit, color = TextPrimary, fontSize = 13.sp)

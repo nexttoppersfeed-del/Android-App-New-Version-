@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AdminPanelSettings
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Edit
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -263,7 +265,14 @@ private fun ProfileContent(
                     }
                 }
                 // Trophy illustration area
-                Text("🎯", fontSize = 32.sp)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(AccentCyan.copy(0.10f), RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.TrackChanges, null, tint = AccentCyan, modifier = Modifier.size(26.dp))
+                }
             }
         }
 
@@ -272,9 +281,9 @@ private fun ProfileContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            ProfileStatTile("🔥", "${user.streak}", "Streak", PremiumGold, Modifier.weight(1f))
-            ProfileStatTile("⚡", "${user.xp}", "XP", AccentCyan, Modifier.weight(1f))
-            ProfileStatTile("🏆", "#$userRank", "Global Rank", AccentViolet, Modifier.weight(1f))
+            ProfileStatTile(Icons.Rounded.LocalFireDepartment, "${user.streak}", "Streak", PremiumGold, Modifier.weight(1f))
+            ProfileStatTile(Icons.Rounded.Bolt, "${user.xp}", "XP", AccentCyan, Modifier.weight(1f))
+            ProfileStatTile(Icons.Rounded.EmojiEvents, "#$userRank", "Global Rank", AccentViolet, Modifier.weight(1f))
         }
 
         // ── Level progress ───────────────────────────────────────────────────
@@ -373,7 +382,7 @@ private fun ProfileContent(
 }
 
 @Composable
-private fun ProfileStatTile(emoji: String, value: String, label: String, color: Color, modifier: Modifier = Modifier) {
+private fun ProfileStatTile(icon: ImageVector, value: String, label: String, color: Color, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .background(color.copy(0.07f), RoundedCornerShape(14.dp))
@@ -382,7 +391,7 @@ private fun ProfileStatTile(emoji: String, value: String, label: String, color: 
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(emoji, fontSize = 18.sp)
+            Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
             Text(value, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = color)
             Text(label, fontSize = 10.sp, color = TextMuted)
         }

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -116,7 +117,7 @@ fun QuizHomeScreen(
                     // ── Featured ──────────────────────────────────────────────
                     if (data.featured.isNotEmpty()) {
                         item {
-                            SectionHeader("⭐  Featured Quizzes")
+                            SectionHeader("Featured Quizzes")
                             Spacer(Modifier.height(12.dp))
                         }
                         item {
@@ -193,7 +194,7 @@ fun QuizHomeScreen(
                         item {
                             Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("🎯", fontSize = 40.sp)
+                                    Icon(Icons.Rounded.TrackChanges, null, tint = TextSecondary, modifier = Modifier.size(40.dp))
                                     Spacer(Modifier.height(8.dp))
                                     Text("No quizzes found", color = TextSecondary)
                                     Text("Try a different filter", color = TextMuted, fontSize = 12.sp)

@@ -27,9 +27,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowForwardIos
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Group
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -54,6 +59,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -191,7 +197,14 @@ fun LeaderboardScreen(viewModel: LeaderboardViewModel = hiltViewModel()) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("🔒", fontSize = 40.sp)
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(TextMuted.copy(0.10f), RoundedCornerShape(18.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Rounded.Lock, null, tint = TextMuted, modifier = Modifier.size(32.dp))
+                        }
                         Text("Coming Soon", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Text("This feature is being built.", color = TextSecondary, fontSize = 13.sp)
                     }
@@ -308,24 +321,31 @@ private fun LeaderboardHeader(state: LeaderboardUiState) {
                     LeaderboardStat(
                         value = "${state.entries.size}",
                         label = "Students",
-                        icon  = "👥"
+                        icon  = Icons.Rounded.Group
                     )
                     val avgXp = if (state.entries.isEmpty()) 0L
                     else state.entries.sumOf { it.xp } / state.entries.size
-                    LeaderboardStat(value = "${avgXp}", label = "Avg XP", icon = "⚡")
-                    LeaderboardStat(value = "#${state.userRank}", label = "Your Rank", icon = "🎯")
+                    LeaderboardStat(value = "${avgXp}", label = "Avg XP", icon = Icons.Rounded.Bolt)
+                    LeaderboardStat(value = "#${state.userRank}", label = "Your Rank", icon = Icons.Rounded.TrackChanges)
                 }
             }
-            Text("🏆", fontSize = 56.sp)
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(PremiumGold.copy(0.12f), RoundedCornerShape(18.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Rounded.EmojiEvents, null, tint = PremiumGold, modifier = Modifier.size(40.dp))
+            }
         }
     }
 }
 
 @Composable
-private fun LeaderboardStat(value: String, label: String, icon: String) {
+private fun LeaderboardStat(value: String, label: String, icon: ImageVector) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(icon, fontSize = 11.sp)
+            Icon(icon, null, tint = TextSecondary, modifier = Modifier.size(12.dp))
             Spacer(Modifier.width(3.dp))
             Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
         }
@@ -434,7 +454,7 @@ private fun PodiumSlot(
     ) {
         // Crown for #1
         if (rank == 1) {
-            Text("👑", fontSize = 20.sp)
+            Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(22.dp))
         }
 
         // Avatar

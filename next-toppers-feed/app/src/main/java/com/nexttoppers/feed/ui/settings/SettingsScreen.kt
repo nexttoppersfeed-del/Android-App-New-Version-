@@ -169,7 +169,7 @@ fun SettingsScreen(
                 }
 
                 // ── Notifications ─────────────────────────────────────────────
-                SettingsSection(title = "🔔 Notifications", accentColor = AccentCyan) {
+                SettingsSection(title = "Notifications", accentColor = AccentCyan) {
                     SettingsToggleRow("Push Notifications",  "Receive all app push alerts", pushEnabled,         viewModel::setPushNotifications)
                     NeonDivider()
                     SettingsToggleRow("Announcements",       "Teacher & school updates",    announcementEnabled, viewModel::setAnnouncementAlerts)
@@ -180,7 +180,7 @@ fun SettingsScreen(
                 }
 
                 // ── Downloads & Storage ───────────────────────────────────────
-                SettingsSection(title = "📦 Downloads & Storage", accentColor = AccentEmerald) {
+                SettingsSection(title = "Downloads & Storage", accentColor = AccentEmerald) {
                     SettingsToggleRow("Wi-Fi Only Downloads", "Save mobile data",           wifiOnly, viewModel::setWifiOnlyDownloads)
                     NeonDivider()
                     SettingsNavRow(Icons.Rounded.Download, "Offline Library", "View downloaded files", onClick = onNavigateToDownloads)
@@ -190,12 +190,12 @@ fun SettingsScreen(
                 }
 
                 // ── Privacy ───────────────────────────────────────────────────
-                SettingsSection(title = "🔒 Privacy", accentColor = AccentViolet) {
+                SettingsSection(title = "Privacy", accentColor = AccentViolet) {
                     SettingsToggleRow("Usage Analytics", "Help improve the app (anonymous)", analytics, viewModel::setAnalyticsEnabled)
                 }
 
                 // ── Support & Feedback ────────────────────────────────────────
-                SettingsSection(title = "💡 Support & Feedback", accentColor = PremiumGold) {
+                SettingsSection(title = "Support & Feedback", accentColor = PremiumGold) {
                     SettingsNavRow(Icons.Rounded.BugReport,   "Report an Issue",  "Found a bug?",               onClick = onNavigateToReportIssue)
                     NeonDivider()
                     SettingsNavRow(Icons.Rounded.Feedback,    "App Feedback",     "Share your thoughts",         onClick = onNavigateToFeedback)
@@ -216,7 +216,7 @@ fun SettingsScreen(
                 }
 
                 // ── About & Legal ─────────────────────────────────────────────
-                SettingsSection(title = "📄 About & Legal", accentColor = AccentIndigo) {
+                SettingsSection(title = "About & Legal", accentColor = AccentIndigo) {
                     SettingsNavRow(Icons.Rounded.Policy,       "Privacy Policy",    "How we handle your data",  onClick = onNavigateToPrivacyPolicy)
                     NeonDivider()
                     SettingsNavRow(Icons.Rounded.Security,     "Terms of Service",  "Usage rules & guidelines", onClick = onNavigateToTerms)
@@ -251,7 +251,7 @@ fun SettingsScreen(
                 }
 
                 // ── Account actions ───────────────────────────────────────────
-                SettingsSection(title = "⚠️ Account", accentColor = ErrorRed) {
+                SettingsSection(title = "Account", accentColor = ErrorRed) {
                     SettingsNavRow(
                         Icons.Rounded.DeleteForever, "Delete Account",
                         "Permanently remove your account",

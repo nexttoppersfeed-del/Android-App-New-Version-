@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -131,7 +134,7 @@ private fun AchievementChip(achievement: Achievement, modifier: Modifier = Modif
                             .background(SurfaceElevated, RoundedCornerShape(4.dp))
                             .padding(horizontal = 4.dp, vertical = 1.dp)
                     ) {
-                        Text("🔒", fontSize = 9.sp)
+                        Icon(Icons.Rounded.Lock, null, tint = TextMuted, modifier = Modifier.size(10.dp))
                     }
                 }
             }

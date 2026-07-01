@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.WifiOff
@@ -236,14 +237,14 @@ fun ReportIssueScreen(onBack: () -> Unit) {
                 NtfCard(modifier = Modifier.fillMaxWidth(), borderColor = NeonCyan.copy(0.2f)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Other ways to reach us", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                        ContactRow("📧", "Email", "nexttoppersfeed@gmail.com") {
+                        ContactRow(Icons.Rounded.Email, "Email", "nexttoppersfeed@gmail.com") {
                             runCatching {
                                 context.startActivity(
                                     Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:nexttoppersfeed@gmail.com"))
                                 )
                             }
                         }
-                        ContactRow("🌐", "Website", "nexttopper-feed.pages.dev") {
+                        ContactRow(Icons.Rounded.Language, "Website", "nexttopper-feed.pages.dev") {
                             runCatching {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://nexttopper-feed.pages.dev")))
                             }
@@ -285,12 +286,12 @@ private fun IssueCategoryRow(
 }
 
 @Composable
-private fun ContactRow(emoji: String, label: String, value: String, onClick: () -> Unit) {
+private fun ContactRow(icon: ImageVector, label: String, value: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(emoji, fontSize = 14.sp)
+        Icon(icon, null, tint = TextSecondary, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(8.dp))
         Text("$label: ", color = TextSecondary, fontSize = 12.sp)
         Text(value, color = NeonCyan, fontSize = 12.sp)
