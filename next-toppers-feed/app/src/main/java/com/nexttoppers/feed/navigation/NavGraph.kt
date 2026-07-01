@@ -101,6 +101,7 @@ import com.nexttoppers.feed.ui.premium.PremiumScreen
 import com.nexttoppers.feed.ui.profile.ProfileScreen
 import com.nexttoppers.feed.ui.quiz.QuizHomeScreen
 import com.nexttoppers.feed.ui.quiz.QuizPlayerScreen
+import com.nexttoppers.feed.ui.quiz.QuizPlayerViewModel
 import com.nexttoppers.feed.ui.quiz.QuizResultScreen
 import com.nexttoppers.feed.ui.resources.ResourceDetailScreen
 import com.nexttoppers.feed.ui.resources.ResourcesScreen
@@ -372,13 +373,7 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                 ) {
                     SubjectResourcesScreen(
                         onBack            = { navController.popBackStack() },
-                        onNavigateToDetail = { id -> navController.navigateSafe(Routes.resourceDetail(id)) },
-                        onOpenPdf         = { resourceId, title, localPath, fileUrl ->
-                            navController.navigateSafe(Routes.pdfViewer(resourceId, title, localPath, fileUrl))
-                        },
-                        onOpenLecture     = { url, title ->
-                            navController.navigateSafe(Routes.lecturePlayer(url, title))
-                        }
+                        onNavigateToDetail = { id -> navController.navigateSafe(Routes.resourceDetail(id)) }
                     )
                 }
 
@@ -389,10 +384,10 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                 ) {
                     ResourceDetailScreen(
                         onBack        = { navController.popBackStack() },
-                        onOpenPdf     = { resourceId, title, localPath, fileUrl ->
+                        onOpenPdf     = { localPath, resourceId, title, fileUrl ->
                             navController.navigateSafe(Routes.pdfViewer(resourceId, title, localPath, fileUrl))
                         },
-                        onOpenLecture = { url, title ->
+                        onPlayLecture = { url, title ->
                             navController.navigateSafe(Routes.lecturePlayer(url, title))
                         }
                     )
@@ -466,7 +461,6 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                 // ── Admin Dashboard ──────────────────────────────────────────────
                 composable(Routes.ADMIN) {
                     AdminDashboardScreen(
-                        onBack                      = { navController.popBackStack() },
                         onNavigateToPremiumRequests = { navController.navigateSafe(Routes.ADMIN_PREMIUM_REQUESTS) },
                         onNavigateToResources       = { navController.navigateSafe(Routes.ADMIN_RESOURCES) },
                         onNavigateToAnnouncements   = { navController.navigateSafe(Routes.ADMIN_ANNOUNCEMENTS) },
@@ -529,19 +523,14 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                     val fileUrl   = URLDecoder.decode(backStack.arguments?.getString("fileUrl")   ?: "", "UTF-8")
                     val resourceId = backStack.arguments?.getString("resourceId") ?: ""
                     PdfViewerScreen(
-                        resourceId = resourceId,
-                        title      = title,
-                        localPath  = localPath,
-                        fileUrl    = fileUrl,
-                        onBack     = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() }
                     )
                 }
 
                 // ── Quiz ────────────────────────────────────────────────────────
                 composable(Routes.QUIZ_HOME) {
                     QuizHomeScreen(
-                        onNavigateToQuiz   = { quizId -> navController.navigate(Routes.quizPlayer(quizId)) },
-                        onBack             = { navController.popBackStack() }
+                        onNavigateToPlayer = { quizId -> navController.navigate(Routes.quizPlayer(quizId)) }
                     )
                 }
                 composable(
@@ -549,14 +538,26 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                     arguments = listOf(navArgument("quizId") { type = NavType.StringType })
                 ) {
                     QuizPlayerScreen(
-                        onQuizComplete = { navController.navigate(Routes.QUIZ_RESULT) { launchSingleTop = true } },
-                        onBack         = { navController.popBackStack() }
+                        onBack             = { navController.popBackStack() },
+                        onNavigateToResult = { _, _, _, _, _, _ ->
+                            navController.navigate(Routes.QUIZ_RESULT) { launchSingleTop = true }
+                        }
                     )
                 }
                 composable(Routes.QUIZ_RESULT) {
-                    QuizResultScreen(onBack = {
-                        navController.popBackStack(Routes.QUIZ_HOME, inclusive = false)
-                    })
+                    val playerEntry = remember(navController) {
+                        navController.getBackStackEntry(Routes.QUIZ_PLAYER)
+                    }
+                    val playerVm: QuizPlayerViewModel = hiltViewModel(playerEntry)
+                    QuizResultScreen(
+                        onBack          = { navController.popBackStack(Routes.QUIZ_HOME, inclusive = false) },
+                        onRetakeQuiz    = { quizId ->
+                            navController.navigate(Routes.quizPlayer(quizId)) {
+                                popUpTo(Routes.QUIZ_HOME) { inclusive = false }
+                            }
+                        },
+                        playerViewModel = playerVm
+                    )
                 }
 
                 // ── Tests ────────────────────────────────────────────────────────
@@ -575,8 +576,6 @@ private fun MainAppShell(onSignedOut: () -> Unit) {
                     val url   = URLDecoder.decode(backStack.arguments?.getString("url")   ?: "", "UTF-8")
                     val title = URLDecoder.decode(backStack.arguments?.getString("title") ?: "", "UTF-8")
                     LecturePlayerScreen(
-                        url   = url,
-                        title = title,
                         onBack = { navController.popBackStack() }
                     )
                 }

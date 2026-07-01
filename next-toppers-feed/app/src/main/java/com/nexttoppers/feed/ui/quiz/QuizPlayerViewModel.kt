@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.nexttoppers.feed.data.model.Question
 import com.nexttoppers.feed.data.model.Quiz
-import com.nexttoppers.feed.data.model.QuizAttempt
+import com.nexttoppers.feed.data.model.TestAttempt
 import com.nexttoppers.feed.data.repository.QuizRepository
 import com.nexttoppers.feed.data.repository.XpRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -121,7 +121,7 @@ class QuizPlayerViewModel @Inject constructor(
             .coerceAtMost(quiz.durationSeconds())
 
         val score = questions.indices.count { idx ->
-            _answers.value[idx] == questions[idx].correctAnswer
+            _answers.value[idx] == questions[idx].correctAnswerIndex
         }
         val accuracy = if (questions.isNotEmpty()) score.toFloat() / questions.size else 0f
         val xpEarned = when {
@@ -130,17 +130,8 @@ class QuizPlayerViewModel @Inject constructor(
             else             -> (quiz.xpReward * 0.25f).toInt()
         }
 
-        val attemptAnswers = _answers.value.entries.associate { (k, v) -> k.toString() to v }
-        val attempt = QuizAttempt(
-            quizId         = quizId,
-            quizTitle      = quiz.title,
-            subject        = quiz.subject,
-            score          = score,
-            totalQuestions = questions.size,
-            xpEarned       = xpEarned,
-            timeTaken      = elapsed,
-            answers        = attemptAnswers
-        )
+        val savedAnswers = _answers.value.entries
+            .associate { (k, v) -> k.toString() to (v?.toString() ?: "") }
 
         _result.value = QuizResult(
             quizId    = quizId,
@@ -155,6 +146,18 @@ class QuizPlayerViewModel @Inject constructor(
 
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
+            val attempt = TestAttempt(
+                userId         = uid,
+                testId         = quizId,
+                score          = score,
+                totalMarks     = questions.size,
+                totalQuestions = questions.size,
+                correctAnswers = score,
+                wrongAnswers   = questions.size - score,
+                skipped        = 0,
+                timeTaken      = elapsed,
+                answers        = savedAnswers
+            )
             xpRepository.awardXp(uid, xpEarned)
             xpRepository.saveAttempt(uid, attempt)
             quizRepository.incrementAttempts(quizId)

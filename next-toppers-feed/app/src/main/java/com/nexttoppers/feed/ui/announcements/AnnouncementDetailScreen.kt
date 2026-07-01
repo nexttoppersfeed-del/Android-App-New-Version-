@@ -436,7 +436,7 @@ private fun AnnouncementDetailContent(
             )
 
             val lines =
-                announcement.message
+                announcement.content
                     .replace("\\n", "\n")
                     .split("\n")
 

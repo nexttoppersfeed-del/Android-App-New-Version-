@@ -244,7 +244,7 @@ private fun AnnouncementManageCard(
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Text(
-                        ann.message,
+                        ann.content,
                         color = TextSecondary, fontSize = 12.sp, maxLines = 2,
                         overflow = TextOverflow.Ellipsis, lineHeight = 17.sp
                     )
@@ -276,7 +276,7 @@ private fun AnnouncementFormDialog(
     onSave: (String, String, String, Boolean, Boolean, Int) -> Unit
 ) {
     var title     by remember { mutableStateOf(editing?.title ?: "") }
-    var message   by remember { mutableStateOf(editing?.message ?: "") }
+    var message   by remember { mutableStateOf(editing?.content ?: "") }
     var imageUrl  by remember { mutableStateOf(editing?.imageUrl ?: "") }
     var pinned    by remember { mutableStateOf(editing?.pinned ?: false) }
     var important by remember { mutableStateOf(editing?.important ?: false) }

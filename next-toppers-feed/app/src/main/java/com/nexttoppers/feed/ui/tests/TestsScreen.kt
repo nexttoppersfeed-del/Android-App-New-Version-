@@ -309,7 +309,7 @@ private fun TestCard(test: NtfTest, attempt: TestAttempt?, onClick: () -> Unit) 
                         )
                     }
                 }
-                if (test.premium) {
+                if (test.isPremium) {
                     Icon(Icons.Rounded.Lock, null, tint = PremiumGold, modifier = Modifier.size(16.dp))
                 }
             }

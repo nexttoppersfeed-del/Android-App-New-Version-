@@ -205,9 +205,9 @@ private fun ProfileContent(
                                 .border(2.dp, AccentCyan.copy(0.6f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (user.photoUrl.isNotEmpty()) {
+                            if (user.photoURL.isNotEmpty()) {
                                 AsyncImage(
-                                    model              = user.photoUrl,
+                                    model              = user.photoURL,
                                     contentDescription = null,
                                     contentScale       = ContentScale.Crop,
                                     modifier           = Modifier.fillMaxSize().clip(CircleShape)
@@ -288,9 +288,9 @@ private fun ProfileContent(
 
         // ── Achievements ─────────────────────────────────────────────────────
         AchievementsSection(
-            quizzesCompleted = user.quizzesCompleted,
+            quizzesCompleted = user.totalQuizzes,
             streak           = user.streak,
-            resourcesOpened  = user.resourcesOpened,
+            resourcesOpened  = user.lecturesWatched + user.pdfsRead,
             level            = user.level
         )
 
@@ -302,9 +302,9 @@ private fun ProfileContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    StudyStatItem(Icons.Rounded.Quiz,                 "${user.quizzesCompleted}", "Quizzes",    AccentCyan)
+                    StudyStatItem(Icons.Rounded.Quiz,                 "${user.totalQuizzes}", "Quizzes",    AccentCyan)
                     StudyStatItem(Icons.Rounded.LocalFireDepartment,  "${user.streak}",            "Streak",     PremiumGold)
-                    StudyStatItem(Icons.Rounded.Star,                 "${user.resourcesOpened}",   "Resources",  AccentViolet)
+                    StudyStatItem(Icons.Rounded.Star,                 "${user.lecturesWatched + user.pdfsRead}",   "Resources",  AccentViolet)
                     StudyStatItem(Icons.Rounded.EmojiEvents,         "Lv.${user.level}",          "Level",      NeonGreen)
                 }
             }
@@ -319,7 +319,7 @@ private fun ProfileContent(
                 ProfileInfoRow(Icons.Rounded.EmojiEvents,   "XP Points",      "${user.xp} XP")
                 ProfileInfoRow(Icons.Rounded.LocalFireDepartment, "Streak",   "${user.streak} days")
                 val joinedStr = try {
-                    SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(user.joinedAt.toDate())
+                    SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(user.createdAt.toDate())
                 } catch (_: Exception) { "—" }
                 ProfileInfoRow(Icons.Rounded.CalendarMonth, "Joined On", joinedStr)
             }

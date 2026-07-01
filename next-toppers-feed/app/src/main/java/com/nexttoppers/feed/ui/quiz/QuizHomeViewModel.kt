@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.nexttoppers.feed.data.model.Quiz
-import com.nexttoppers.feed.data.model.QuizAttempt
+import com.nexttoppers.feed.data.model.TestAttempt
 import com.nexttoppers.feed.data.model.ResourceSubject
 import com.nexttoppers.feed.data.repository.QuizRepository
 import com.nexttoppers.feed.data.repository.XpRepository
@@ -18,7 +18,7 @@ data class QuizHomeData(
     val featured: List<Quiz>,
     val recent: List<Quiz>,
     val all: List<Quiz>,
-    val history: List<QuizAttempt>
+    val history: List<TestAttempt>
 )
 
 sealed class QuizHomeUiState {
@@ -44,7 +44,7 @@ class QuizHomeViewModel @Inject constructor(
     val selectedDifficulty: StateFlow<String?> = _selectedDifficulty
 
     private var allQuizzes: List<Quiz> = emptyList()
-    private var history: List<QuizAttempt> = emptyList()
+    private var history: List<TestAttempt> = emptyList()
 
     init {
         load()

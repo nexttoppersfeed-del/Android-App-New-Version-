@@ -542,7 +542,7 @@ private fun AnnouncementAdminRow(ann: Announcement, onClick: () -> Unit) {
             Text(ann.title, color = TextPrimary, fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold, maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            Text(ann.message.take(50), color = TextMuted, fontSize = 11.sp, maxLines = 1,
+            Text(ann.content.take(50), color = TextMuted, fontSize = 11.sp, maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
         if (ann.isUrgent) {

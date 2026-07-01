@@ -151,7 +151,7 @@ fun PinnedAnnouncementBanner(
                 )
 
                 Text(
-                    announcement.message
+                    announcement.content
                         .replace("\\n", " ")
                         .take(80),
 
@@ -455,7 +455,7 @@ private fun AnnouncementCarouselCard(
                 )
 
                 Text(
-                    announcement.message
+                    announcement.content
                         .replace("\\n", " ")
                         .take(80),
 

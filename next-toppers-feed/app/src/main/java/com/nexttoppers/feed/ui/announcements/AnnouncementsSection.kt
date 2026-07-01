@@ -375,7 +375,7 @@ private fun AnnouncementCard(
                     )
                 }
 
-                announcement.message
+                announcement.content
                     .replace("\\n", "\n")
                     .split("\n")
                     .forEach { line ->

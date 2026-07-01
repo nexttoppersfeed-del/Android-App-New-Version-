@@ -353,9 +353,9 @@ private fun HomeTopBar(
                     .border(1.dp, AccentCyan.copy(0.5f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                if (user.photoUrl.isNotEmpty()) {
+                if (user.photoURL.isNotEmpty()) {
                     AsyncImage(
-                        model = user.photoUrl,
+                        model = user.photoURL,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize().clip(CircleShape)
@@ -428,9 +428,9 @@ private fun HeroStatsCard(user: User, rank: Int) {
                             .border(2.dp, AccentCyan.copy(0.5f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (user.photoUrl.isNotEmpty()) {
+                        if (user.photoURL.isNotEmpty()) {
                             AsyncImage(
-                                model              = user.photoUrl,
+                                model              = user.photoURL,
                                 contentDescription = null,
                                 contentScale       = ContentScale.Crop,
                                 modifier           = Modifier.fillMaxSize().clip(CircleShape)

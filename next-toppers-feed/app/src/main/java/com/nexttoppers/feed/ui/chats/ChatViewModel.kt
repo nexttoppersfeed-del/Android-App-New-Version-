@@ -82,7 +82,7 @@ class ChatViewModel @Inject constructor(
             userRepository.getUser(otherId)
                 .onSuccess { user ->
                     if (user.name.isNotBlank()) resolvedNames[otherId]  = user.name
-                    if (user.photoUrl.isNotBlank()) resolvedPhotos[otherId] = user.photoUrl
+                    if (user.photoURL.isNotBlank()) resolvedPhotos[otherId] = user.photoURL
                 }
                 .onFailure { err ->
     AppLogger.w("ChatViewModel", "Could not resolve user $otherId: ${err.message}")

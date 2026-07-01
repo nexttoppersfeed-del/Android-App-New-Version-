@@ -421,7 +421,7 @@ private fun AnswerReviewCard(
 ) {
 
     val isCorrect =
-        selected == question.correctAnswer
+        selected == question.correctAnswerIndex
 
     val accent =
         if (isCorrect) {

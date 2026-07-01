@@ -79,7 +79,7 @@ class ChatListViewModel @Inject constructor(
             for (uid in missingUids) {
                 userRepository.getUser(uid).onSuccess { user ->
                     fetchedNames[uid]  = user.name
-                    fetchedPhotos[uid] = user.photoUrl
+                    fetchedPhotos[uid] = user.photoURL
                 }
             }
 
@@ -127,10 +127,10 @@ class ChatListViewModel @Inject constructor(
             val chatId = chatRepository.getOrCreatePrivateChat(
                 myUid    = myUid,
                 myName   = myUser.name,
-                myPhoto  = myUser.photoUrl,
+                myPhoto  = myUser.photoURL,
                 otherUid   = otherUid,
                 otherName  = otherUser.name,
-                otherPhoto = otherUser.photoUrl
+                otherPhoto = otherUser.photoURL
             ).getOrNull() ?: return@launch
             _pendingNavigation.value = chatId
         }

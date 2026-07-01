@@ -83,7 +83,7 @@ class CommunityViewModel @Inject constructor(
                 val post = CommunityPost(
                     userId    = uid,
                     username  = user?.name?.ifBlank { "Student" } ?: "Student",
-                    userPhoto = user?.photoUrl ?: "",
+                    userPhoto = user?.photoURL ?: "",
                     type      = PostType.DISCUSSION.name,
                     title     = "",
                     content   = text

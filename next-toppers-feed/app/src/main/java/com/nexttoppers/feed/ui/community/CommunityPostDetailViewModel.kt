@@ -78,7 +78,7 @@ class CommunityPostDetailViewModel @Inject constructor(
                 postId    = postId,
                 userId    = uid,
                 username  = user?.name ?: "Student",
-                userPhoto = user?.photoUrl ?: "",
+                userPhoto = user?.photoURL ?: "",
                 content   = text
             )
             communityRepository.addComment(comment)

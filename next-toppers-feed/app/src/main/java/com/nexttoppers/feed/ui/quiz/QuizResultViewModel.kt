@@ -4,7 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
-import com.nexttoppers.feed.data.model.QuizAttempt
+import com.nexttoppers.feed.data.model.TestAttempt
 import com.nexttoppers.feed.data.repository.QuizRepository
 import com.nexttoppers.feed.data.repository.XpRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -63,7 +63,7 @@ class QuizResultViewModel @Inject constructor(
     // Quiz history
     // ─────────────────────────────────────────────
 
-    val history: StateFlow<List<QuizAttempt>> =
+    val history: StateFlow<List<TestAttempt>> =
         if (auth.currentUser?.uid != null) {
 
             xpRepository.observeHistory(
@@ -71,7 +71,7 @@ class QuizResultViewModel @Inject constructor(
             ).map { result ->
 
                 result.getOrElse {
-                    emptyList<QuizAttempt>()
+                    emptyList()
                 }
 
             }.stateIn(
@@ -82,7 +82,7 @@ class QuizResultViewModel @Inject constructor(
 
         } else {
 
-            MutableStateFlow<List<QuizAttempt>>(
+            MutableStateFlow<List<TestAttempt>>(
                 emptyList()
             )
         }

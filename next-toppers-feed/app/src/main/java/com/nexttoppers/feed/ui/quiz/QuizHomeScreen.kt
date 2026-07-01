@@ -223,11 +223,11 @@ fun QuizHomeScreen(
                         }
                         itemsIndexed(data.history.take(5)) { index, attempt ->
                             QuizHistoryCard(
-                                title    = attempt.quizTitle,
+                                title    = attempt.testId.ifBlank { "Quiz Attempt" },
                                 score    = attempt.score,
                                 total    = attempt.totalQuestions,
-                                xpEarned = attempt.xpEarned,
-                                subject  = attempt.subject,
+                                xpEarned = 0,
+                                subject  = "",
                                 index    = index
                             )
                             Spacer(Modifier.height(8.dp))

@@ -55,7 +55,7 @@ class CreatePostViewModel @Inject constructor(
             val post = CommunityPost(
                 userId    = uid,
                 username  = user?.name ?: "Student",
-                userPhoto = user?.photoUrl ?: "",
+                userPhoto = user?.photoURL ?: "",
                 type      = type.name,
                 title     = title.trim(),
                 content   = content.trim(),
