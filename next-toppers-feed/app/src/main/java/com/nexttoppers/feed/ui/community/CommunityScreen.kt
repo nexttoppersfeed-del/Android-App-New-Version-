@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -133,7 +134,6 @@ fun CommunityScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundBlack)
-            .imePadding()
     ) {
         CommunityHeader()
 
@@ -208,28 +208,38 @@ fun CommunityScreen(
             }
         }
 
-        replyTo?.let { replyPost ->
-            CommunityReplyBar(
-                author   = replyPost.username,
-                preview  = replyPost.content,
-                onCancel = { viewModel.clearReply() }
-            )
-        }
-        editTarget?.let { ep ->
-            CommunityEditBar(
-                preview  = ep.content,
-                onCancel = { viewModel.cancelEdit() }
-            )
-        }
+        // Input section is scoped with imePadding + navigationBarsPadding so that
+        // only the composer area reacts to the keyboard — the message list and header
+        // stay anchored and do not shift or jump during keyboard animation.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+        ) {
+            replyTo?.let { replyPost ->
+                CommunityReplyBar(
+                    author   = replyPost.username,
+                    preview  = replyPost.content,
+                    onCancel = { viewModel.clearReply() }
+                )
+            }
+            editTarget?.let { ep ->
+                CommunityEditBar(
+                    preview  = ep.content,
+                    onCancel = { viewModel.cancelEdit() }
+                )
+            }
 
-        CommunityMessageInputBar(
-            value         = messageInput,
-            onValueChange = viewModel::setMessageInput,
-            onSend        = viewModel::sendQuickMessage,
-            onNewPost     = onNavigateToCreatePost,
-            isSending     = isSending,
-            isEditing     = editTarget != null
-        )
+            CommunityMessageInputBar(
+                value         = messageInput,
+                onValueChange = viewModel::setMessageInput,
+                onSend        = viewModel::sendQuickMessage,
+                onNewPost     = onNavigateToCreatePost,
+                isSending     = isSending,
+                isEditing     = editTarget != null
+            )
+        }
     }
 }
 

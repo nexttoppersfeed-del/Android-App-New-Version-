@@ -101,6 +101,9 @@ class ChatRepository @Inject constructor(
         val listener = query.addSnapshotListener { snap, err ->
             if (err != null) { trySend(Result.failure(err)); return@addSnapshotListener }
             val chats = snap?.documents?.mapNotNull { mapToChat(it) } ?: emptyList()
+            // Skip cache-only empty results — wait for server confirmation to
+            // avoid flashing "No conversations yet" before real data arrives.
+            if (chats.isEmpty() && snap?.metadata?.isFromCache == true) return@addSnapshotListener
             trySend(Result.success(chats))
         }
         awaitClose { listener.remove() }

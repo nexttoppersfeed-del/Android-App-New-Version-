@@ -8,6 +8,9 @@ import com.nexttoppers.feed.data.repository.AuthRepository
 import com.nexttoppers.feed.data.repository.ChatRepository
 import com.nexttoppers.feed.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -65,44 +68,60 @@ class ChatListViewModel @Inject constructor(
         }
         viewModelScope.launch {
             chatRepository.observeUserChats(uid).collect { result ->
-                _isFirstLoad.value = false
                 result
                     .onSuccess { chats ->
+                        // Show chats immediately with whatever names Firestore has —
+                        // this makes the list appear in <1s from the first snapshot.
+                        _isFirstLoad.value = false
+                        _allChats.value = chats
+                        applySearch(_searchQuery.value, chats)
+
+                        // Enrich any missing participant names in parallel, then
+                        // re-publish only if something actually changed.
                         val enriched = enrichParticipantNames(chats, uid)
-                        _allChats.value = enriched
-                        applySearch(_searchQuery.value, enriched)
+                        if (enriched != chats) {
+                            _allChats.value = enriched
+                            applySearch(_searchQuery.value, enriched)
+                        }
                     }
                     .onFailure { err ->
+                        _isFirstLoad.value = false
                         _uiState.value = ChatListUiState.Error(err.message ?: "Failed to load chats")
                     }
             }
         }
     }
 
-    private suspend fun enrichParticipantNames(chats: List<Chat>, myUid: String): List<Chat> {
-        return chats.map { chat ->
-            val missingUids = chat.participants.filter { uid ->
-                uid != myUid && chat.participantNames[uid].isNullOrBlank()
-            }
-            if (missingUids.isEmpty()) return@map chat
+    private suspend fun enrichParticipantNames(chats: List<Chat>, myUid: String): List<Chat> =
+        coroutineScope {
+            chats.map { chat ->
+                async {
+                    val missingUids = chat.participants.filter { uid ->
+                        uid != myUid && chat.participantNames[uid].isNullOrBlank()
+                    }
+                    if (missingUids.isEmpty()) return@async chat
 
-            val fetchedNames  = mutableMapOf<String, String>()
-            val fetchedPhotos = mutableMapOf<String, String>()
-            for (uid in missingUids) {
-                userRepository.getUser(uid).onSuccess { user ->
-                    fetchedNames[uid]  = user.name
-                    fetchedPhotos[uid] = user.photoURL
+                    // Fetch all missing users in parallel — one concurrent request per user
+                    // instead of the previous sequential for-loop.
+                    val fetchedNames  = mutableMapOf<String, String>()
+                    val fetchedPhotos = mutableMapOf<String, String>()
+                    missingUids
+                        .map { uid -> async { userRepository.getUser(uid).getOrNull()?.let { uid to it } } }
+                        .awaitAll()
+                        .filterNotNull()
+                        .forEach { (uid, user) ->
+                            fetchedNames[uid]  = user.name
+                            fetchedPhotos[uid] = user.photoURL
+                        }
+
+                    if (fetchedNames.isEmpty()) return@async chat
+                    chat.copy(
+                        participantNames  = chat.participantNames + fetchedNames,
+                        participantPhotos = chat.participantPhotos + fetchedPhotos
+                    )
                 }
-            }
-
-            if (fetchedNames.isEmpty()) return@map chat
-
-            chat.copy(
-                participantNames  = chat.participantNames + fetchedNames,
-                participantPhotos = chat.participantPhotos + fetchedPhotos
-            )
+            }.awaitAll()
         }
-    }
 
     private fun observeSearch() {
         viewModelScope.launch {
