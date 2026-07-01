@@ -124,15 +124,7 @@ fun SettingsScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(BackgroundBlack)) {
-        // Ambient glow
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .background(Brush.radialGradient(listOf(AccentCyan.copy(0.05f), Color.Transparent)))
-        )
-
+    Box(modifier = Modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = visible,
             enter   = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 8 }
@@ -157,12 +149,9 @@ fun SettingsScreen(
                     Column {
                         Text(
                             "Settings",
-                            style = TextStyle(
-                                fontSize   = 22.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                brush      = Brush.linearGradient(listOf(AccentCyan, AccentViolet)),
-                                shadow     = Shadow(AccentCyan.copy(0.3f), Offset.Zero, 8f)
-                            )
+                            fontSize   = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color      = TextPrimary
                         )
                         Text("Manage your preferences & app experience", fontSize = 11.sp, color = TextMuted)
                     }
@@ -239,13 +228,17 @@ fun SettingsScreen(
                             Text("Next Toppers Feed", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                             Text("nexttoppers.in", fontSize = 11.sp, color = TextMuted)
                         }
-                        Box(
-                            modifier = Modifier
-                                .background(AccentCyan.copy(0.1f), RoundedCornerShape(8.dp))
-                                .border(1.dp, AccentCyan.copy(0.3f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        androidx.compose.material3.Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = AccentCyan.copy(0.10f)
                         ) {
-                            Text("v$versionName", fontSize = 11.sp, color = AccentCyan, fontWeight = FontWeight.Bold)
+                            Text(
+                                "v$versionName",
+                                fontSize   = 11.sp,
+                                color      = AccentCyan,
+                                fontWeight = FontWeight.Bold,
+                                modifier   = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
                         }
                     }
                 }
@@ -395,13 +388,14 @@ private fun SettingsNavRow(
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(tintColor.copy(0.1f), RoundedCornerShape(10.dp)),
-            contentAlignment = Alignment.Center
+        androidx.compose.material3.Surface(
+            shape    = RoundedCornerShape(10.dp),
+            color    = tintColor.copy(0.10f),
+            modifier = Modifier.size(36.dp)
         ) {
-            Icon(icon, null, tint = tintColor, modifier = Modifier.size(18.dp))
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(36.dp)) {
+                Icon(icon, null, tint = tintColor, modifier = Modifier.size(18.dp))
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {

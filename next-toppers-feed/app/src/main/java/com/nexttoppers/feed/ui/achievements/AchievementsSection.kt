@@ -70,13 +70,17 @@ fun AchievementsSection(
             verticalAlignment     = Alignment.CenterVertically
         ) {
             Text("Achievements", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Box(
-                modifier = Modifier
-                    .background(NeonGreen.copy(0.12f), RoundedCornerShape(50.dp))
-                    .border(1.dp, NeonGreen.copy(0.3f), RoundedCornerShape(50.dp))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(50.dp),
+                color = NeonGreen.copy(0.12f)
             ) {
-                Text("$unlocked / ${achievements.size}", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text(
+                    "$unlocked / ${achievements.size}",
+                    color      = NeonGreen,
+                    fontWeight = FontWeight.Bold,
+                    fontSize   = 11.sp,
+                    modifier   = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                )
             }
         }
 
@@ -97,44 +101,49 @@ private fun AchievementChip(achievement: Achievement, modifier: Modifier = Modif
     val accentColor = when {
         achievement.unlocked && achievement.xpReward >= 300 -> PremiumGold
         achievement.unlocked                                 -> NeonGreen
-        else                                                  -> TextMuted
+        else                                                 -> TextMuted
     }
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (achievement.unlocked) accentColor.copy(0.08f) else SurfaceCard)
-            .border(
-                1.dp,
-                if (achievement.unlocked)
-                    Brush.linearGradient(listOf(accentColor.copy(0.6f), NeonCyan.copy(0.3f)))
-                else Brush.linearGradient(listOf(SurfaceElevated, SurfaceElevated)),
-                RoundedCornerShape(16.dp)
-            )
-            .padding(12.dp)
-            .alpha(if (achievement.unlocked) 1f else 0.5f)
+    androidx.compose.material3.Card(
+        modifier  = modifier.alpha(if (achievement.unlocked) 1f else 0.5f),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = if (achievement.unlocked)
+                accentColor.copy(0.08f)
+            else
+                SurfaceCard
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border    = if (achievement.unlocked)
+            androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(0.5f))
+        else
+            androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+            modifier            = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(achievement.icon, fontSize = 20.sp)
                 if (achievement.unlocked) {
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                Brush.linearGradient(listOf(NeonGreen, NeonCyan)),
-                                RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = NeonGreen.copy(0.15f)
                     ) {
-                        Text("✓", color = BackgroundBlack, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(
+                            "✓",
+                            color      = NeonGreen,
+                            fontSize   = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            modifier   = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                        )
                     }
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .background(SurfaceElevated, RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = SurfaceElevated
                     ) {
-                        Icon(Icons.Rounded.Lock, null, tint = TextMuted, modifier = Modifier.size(10.dp))
+                        Icon(Icons.Rounded.Lock, null, tint = TextMuted, modifier = Modifier.size(10.dp).padding(1.dp))
                     }
                 }
             }
@@ -146,8 +155,8 @@ private fun AchievementChip(achievement: Achievement, modifier: Modifier = Modif
             )
             Text(
                 achievement.description,
-                color    = TextMuted,
-                fontSize = 10.sp,
+                color      = TextMuted,
+                fontSize   = 10.sp,
                 lineHeight = 14.sp
             )
             Text(

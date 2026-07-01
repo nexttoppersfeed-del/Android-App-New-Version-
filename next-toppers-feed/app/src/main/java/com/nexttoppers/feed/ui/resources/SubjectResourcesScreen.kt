@@ -122,19 +122,7 @@ fun SubjectResourcesScreen(
     val activeFilterCount = listOfNotNull(selectedType, premiumFilter).size +
             if (sortOrder != SortOrder.LATEST) 1 else 0
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundBlack)
-    ) {
-        // Background accent glow
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .background(Brush.radialGradient(listOf(accent.copy(0.06f), Color.Transparent)))
-        )
-
+    Box(modifier = Modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = visible,
             enter   = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 8 }

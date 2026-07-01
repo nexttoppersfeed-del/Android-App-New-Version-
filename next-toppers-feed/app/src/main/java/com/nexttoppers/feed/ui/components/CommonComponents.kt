@@ -7,12 +7,12 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,8 +26,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,20 +51,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nexttoppers.feed.ui.theme.BackgroundBlack
-import com.nexttoppers.feed.ui.theme.GradientEnd
-import com.nexttoppers.feed.ui.theme.GradientStart
-import com.nexttoppers.feed.ui.theme.NeonCyan
 import com.nexttoppers.feed.ui.theme.NeonGreen
 import com.nexttoppers.feed.ui.theme.SurfaceCard
 import com.nexttoppers.feed.ui.theme.SurfaceElevated
-import com.nexttoppers.feed.ui.theme.TextPrimary
-import com.nexttoppers.feed.ui.theme.TextSecondary
-
-val neonGradient = Brush.linearGradient(colors = listOf(GradientStart, GradientEnd))
 
 // ── Shimmer modifier ───────────────────────────────────────────────────────────
 fun Modifier.shimmerEffect(): Modifier = composed {
+    val shimmerColors = listOf(
+        SurfaceCard,
+        SurfaceElevated,
+        SurfaceCard
+    )
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translateAnim by transition.animateFloat(
         initialValue = 0f,
@@ -68,11 +74,7 @@ fun Modifier.shimmerEffect(): Modifier = composed {
     )
     background(
         Brush.linearGradient(
-            colors = listOf(
-                SurfaceCard,
-                SurfaceElevated,
-                SurfaceCard
-            ),
+            colors = shimmerColors,
             start = Offset(translateAnim - 200f, 0f),
             end   = Offset(translateAnim, 0f)
         )
@@ -86,7 +88,7 @@ fun SkeletonCard(modifier: Modifier = Modifier, height: Dp = 120.dp) {
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(16.dp))
             .shimmerEffect()
     )
 }
@@ -107,7 +109,7 @@ fun SkeletonRow(modifier: Modifier = Modifier) {
     }
 }
 
-// ── Primary neon button ────────────────────────────────────────────────────────
+// ── Primary button (Material 3 FilledButton) ───────────────────────────────────
 @Composable
 fun NtfPrimaryButton(
     text: String,
@@ -121,105 +123,85 @@ fun NtfPrimaryButton(
         enabled = enabled && !isLoading,
         modifier = modifier.fillMaxWidth().height(56.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, disabledContainerColor = SurfaceElevated),
-        contentPadding = PaddingValues(0.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .background(
-                    brush = if (enabled && !isLoading) neonGradient
-                    else Brush.linearGradient(listOf(SurfaceElevated, SurfaceElevated)),
-                    shape = RoundedCornerShape(16.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = BackgroundBlack, strokeWidth = 2.dp)
-            } else {
-                Text(text, color = BackgroundBlack, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        } else {
+            Text(text, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
 }
 
-// ── Outlined button ────────────────────────────────────────────────────────────
+// ── Outlined button (Material 3 OutlinedButton) ────────────────────────────────
 @Composable
 fun NtfOutlinedButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    accentColor: Color = NeonGreen,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true
 ) {
-    Button(
+    OutlinedButton(
         onClick  = onClick,
         enabled  = enabled,
-        modifier = modifier.fillMaxWidth().height(56.dp)
-            .border(
-                1.dp,
-                if (enabled) accentColor.copy(alpha = 0.6f) else accentColor.copy(0.2f),
-                RoundedCornerShape(16.dp)
-            ),
-        shape  = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor         = accentColor.copy(alpha = 0.07f),
-            disabledContainerColor = accentColor.copy(alpha = 0.03f)
-        ),
-        contentPadding = PaddingValues(0.dp)
+        modifier = modifier.fillMaxWidth().height(56.dp),
+        shape    = RoundedCornerShape(16.dp),
+        colors   = ButtonDefaults.outlinedButtonColors(contentColor = accentColor),
+        border   = BorderStroke(1.dp, if (enabled) accentColor else accentColor.copy(0.3f))
     ) {
-        Text(
-            text,
-            color      = if (enabled) accentColor else accentColor.copy(0.4f),
-            fontWeight = FontWeight.SemiBold,
-            fontSize   = 16.sp
-        )
+        Text(text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
     }
 }
 
-// ── Glass card ─────────────────────────────────────────────────────────────────
+// ── Card (Material 3 Card) ─────────────────────────────────────────────────────
 @Composable
 fun NtfCard(
     modifier: Modifier = Modifier,
-    borderColor: Color = NeonGreen.copy(alpha = 0.2f),
-    cornerRadius: Dp = 20.dp,
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
+    cornerRadius: Dp = 16.dp,
     innerPadding: Dp = 16.dp,
     content: @Composable () -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(SurfaceCard)
-            .border(1.dp, borderColor, RoundedCornerShape(cornerRadius))
-            .padding(innerPadding)
-    ) { content() }
+    Card(
+        modifier = modifier,
+        shape    = RoundedCornerShape(cornerRadius),
+        colors   = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        border   = BorderStroke(1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Box(modifier = Modifier.padding(innerPadding)) { content() }
+    }
 }
 
-// ── Gradient card border ───────────────────────────────────────────────────────
+// ── Gradient card → ElevatedCard (Material 3) ─────────────────────────────────
 @Composable
 fun NtfGradientCard(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 20.dp,
+    cornerRadius: Dp = 16.dp,
     innerPadding: Dp = 16.dp,
     content: @Composable () -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(SurfaceCard)
-            .border(
-                1.dp,
-                Brush.linearGradient(listOf(NeonGreen.copy(0.5f), NeonCyan.copy(0.5f))),
-                RoundedCornerShape(cornerRadius)
-            )
-            .padding(innerPadding)
-    ) { content() }
+    ElevatedCard(
+        modifier  = modifier,
+        shape     = RoundedCornerShape(cornerRadius),
+        colors    = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(modifier = Modifier.padding(innerPadding)) { content() }
+    }
 }
 
 // ── Pulsing live dot ───────────────────────────────────────────────────────────
 @Composable
-fun PulsingDot(color: Color = NeonGreen, size: Dp = 10.dp) {
+fun PulsingDot(color: Color = MaterialTheme.colorScheme.primary, size: Dp = 10.dp) {
     val transition = rememberInfiniteTransition(label = "pulseDot")
     val alpha by transition.animateFloat(
         initialValue = 0.3f,
@@ -230,61 +212,100 @@ fun PulsingDot(color: Color = NeonGreen, size: Dp = 10.dp) {
     Box(modifier = Modifier.size(size).background(color.copy(alpha = alpha), CircleShape))
 }
 
-// ── XP badge ──────────────────────────────────────────────────────────────────
+// ── XP badge (Material 3 SuggestionChip) ──────────────────────────────────────
 @Composable
 fun XpBadge(xp: Long, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .background(Brush.linearGradient(listOf(NeonGreen.copy(0.15f), NeonCyan.copy(0.15f))), RoundedCornerShape(50.dp))
-            .border(1.dp, NeonGreen.copy(0.45f), RoundedCornerShape(50.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Bolt, null, tint = NeonGreen, modifier = Modifier.size(13.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("$xp XP", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-        }
-    }
+    SuggestionChip(
+        onClick = {},
+        modifier = modifier,
+        label = {
+            Text(
+                "$xp XP",
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+        },
+        icon = {
+            Icon(
+                Icons.Rounded.Bolt,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp)
+            )
+        },
+        colors = SuggestionChipDefaults.suggestionChipColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            iconContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+        ),
+        border = SuggestionChipDefaults.suggestionChipBorder(
+            enabled = true,
+            borderColor = MaterialTheme.colorScheme.outline.copy(0.3f)
+        )
+    )
 }
 
-// ── Section header ─────────────────────────────────────────────────────────────
+// ── Section header (Material 3 typography) ────────────────────────────────────
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier) {
-    Text(title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = modifier)
+    Text(
+        title,
+        style    = MaterialTheme.typography.titleMedium,
+        color    = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier
+    )
 }
 
-// ── Neon divider ───────────────────────────────────────────────────────────────
+// ── Divider (Material 3 HorizontalDivider) ────────────────────────────────────
 @Composable
 fun NeonDivider(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(Brush.horizontalGradient(listOf(Color.Transparent, NeonGreen.copy(0.4f), Color.Transparent)))
+    HorizontalDivider(
+        modifier  = modifier,
+        thickness = 1.dp,
+        color     = MaterialTheme.colorScheme.outlineVariant
     )
 }
 
 // ── Full-screen loading ────────────────────────────────────────────────────────
 @Composable
 fun NtfLoadingOverlay() {
-    Box(modifier = Modifier.fillMaxWidth().background(BackgroundBlack.copy(0.7f)), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = NeonGreen, modifier = Modifier.size(48.dp), strokeWidth = 3.dp)
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(48.dp),
+            strokeWidth = 3.dp
+        )
     }
 }
 
-// ── Stat chip ─────────────────────────────────────────────────────────────────
+// ── Stat chip (Material 3 surface) ────────────────────────────────────────────
 @Composable
 fun StatChip(label: String, value: String, color: Color = NeonGreen, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(color.copy(0.08f))
-            .border(1.dp, color.copy(0.25f), RoundedCornerShape(14.dp))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Surface(
+        modifier  = modifier.clip(RoundedCornerShape(14.dp)),
+        shape     = RoundedCornerShape(14.dp),
+        color     = color.copy(0.08f),
+        tonalElevation = 0.dp
     ) {
-        Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Spacer(Modifier.height(2.dp))
-        Text(label, color = TextSecondary, fontSize = 11.sp)
+        Column(
+            modifier = Modifier
+                .border(1.dp, color.copy(0.2f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Spacer(Modifier.height(2.dp))
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        }
     }
+}
+
+// ── NtfSpinner (shared loading indicator) ────────────────────────────────────
+@Composable
+fun NtfSpinner(modifier: Modifier = Modifier, size: Dp = 40.dp) {
+    CircularProgressIndicator(
+        modifier    = modifier.size(size),
+        strokeWidth = (size.value / 14f).dp
+    )
 }

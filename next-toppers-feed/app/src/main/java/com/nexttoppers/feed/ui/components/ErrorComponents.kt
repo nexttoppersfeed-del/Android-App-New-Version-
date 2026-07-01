@@ -78,7 +78,7 @@ fun FullScreenError(
     )
 
     Box(
-        Modifier.fillMaxSize().background(BackgroundBlack),
+        Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -126,7 +126,7 @@ fun FullScreenOffline(onRetry: (() -> Unit)? = null) {
     )
 
     Box(
-        Modifier.fillMaxSize().background(BackgroundBlack),
+        Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -167,7 +167,7 @@ fun FullScreenOffline(onRetry: (() -> Unit)? = null) {
 @Composable
 fun FullScreenLoading(message: String = "Loading…") {
     Box(
-        Modifier.fillMaxSize().background(BackgroundBlack),
+        Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -249,7 +249,7 @@ fun ErrorBanner(
     }
 }
 
-// ── Success toast (auto-dismiss) ──────────────────────────────────────────────
+// ── Success toast (auto-dismiss, Material 3 ElevatedCard) ─────────────────────
 @Composable
 fun SuccessToast(message: String?, onDismiss: () -> Unit) {
     AnimatedVisibility(
@@ -262,14 +262,15 @@ fun SuccessToast(message: String?, onDismiss: () -> Unit) {
                 kotlinx.coroutines.delay(2500)
                 onDismiss()
             }
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(SurfaceCard)
-                    .border(1.dp, NeonGreen.copy(0.4f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 22.dp, vertical = 13.dp)
+            androidx.compose.material3.ElevatedCard(
+                shape = RoundedCornerShape(16.dp),
+                elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier              = Modifier.padding(horizontal = 22.dp, vertical = 13.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Box(Modifier.size(8.dp).background(NeonGreen, androidx.compose.foundation.shape.CircleShape))
                     Text(message, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
@@ -300,42 +301,37 @@ fun OfflineBanner(visible: Boolean) {
     }
 }
 
-// ── Premium gate ──────────────────────────────────────────────────────────────
+// ── Premium gate (Material 3 OutlinedCard) ────────────────────────────────────
+private val PremiumGate = Color(0xFFFFD700)
+
 @Composable
 fun PremiumGateCard(onUpgrade: () -> Unit, modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "premGate")
-    val glowAlpha by transition.animateFloat(
-        0.08f, 0.18f,
-        infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "premGateGlow"
-    )
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                Brush.verticalGradient(listOf(Color(0xFFFFD700).copy(glowAlpha), Color(0xFFFFD700).copy(0.04f)))
-            )
-            .border(1.dp, Color(0xFFFFD700).copy(0.4f), RoundedCornerShape(18.dp))
-            .clickable(onClick = onUpgrade)
-            .padding(22.dp),
-        contentAlignment = Alignment.Center
+    androidx.compose.material3.OutlinedCard(
+        onClick   = onUpgrade,
+        modifier  = modifier,
+        shape     = RoundedCornerShape(18.dp),
+        colors    = androidx.compose.material3.CardDefaults.outlinedCardColors(
+            containerColor = PremiumGate.copy(0.06f)
+        ),
+        border    = androidx.compose.foundation.BorderStroke(1.dp, PremiumGate.copy(0.4f))
     ) {
         Column(
+            modifier            = Modifier.padding(22.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(Icons.Rounded.Lock, null, tint = Color(0xFFFFD700).copy(0.6f), modifier = Modifier.size(44.dp))
-            Text("Premium Content", color = Color(0xFFFFD700), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+            Icon(Icons.Rounded.Lock, null, tint = PremiumGate.copy(0.7f), modifier = Modifier.size(44.dp))
+            Text("Premium Content", color = PremiumGate, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
             Text("Upgrade to access all premium materials", color = TextMuted, fontSize = 12.sp, textAlign = TextAlign.Center)
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFFFD700).copy(0.15f))
-                    .border(1.dp, Color(0xFFFFD700).copy(0.45f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 22.dp, vertical = 11.dp)
+            androidx.compose.material3.FilledTonalButton(
+                onClick = onUpgrade,
+                shape   = RoundedCornerShape(12.dp),
+                colors  = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                    containerColor = PremiumGate.copy(0.15f),
+                    contentColor   = PremiumGate
+                )
             ) {
-                Text("Upgrade Now", color = Color(0xFFFFD700), fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                Text("Upgrade Now", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
             }
         }
     }
@@ -408,25 +404,24 @@ fun NetworkErrorStrip(
     }
 }
 
-// ── Shared retry button ────────────────────────────────────────────────────────
+// ── Shared retry button (Material 3 FilledTonalButton) ────────────────────────
 @Composable
 internal fun RetryButton(
     onClick: () -> Unit,
     label: String = "Try Again",
     tint: Color = NeonGreen
 ) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(tint.copy(0.1f))
-            .border(1.dp, tint.copy(0.35f), RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 26.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    androidx.compose.material3.FilledTonalButton(
+        onClick = onClick,
+        shape   = RoundedCornerShape(14.dp),
+        colors  = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+            containerColor = tint.copy(0.12f),
+            contentColor   = tint
+        )
     ) {
-        Icon(Icons.Rounded.Refresh, null, tint = tint, modifier = Modifier.size(16.dp))
-        Text(label, color = tint, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
     }
 }
 

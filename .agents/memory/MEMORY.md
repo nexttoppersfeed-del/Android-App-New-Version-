@@ -1,3 +1,3 @@
 - [Next Toppers Feed — Prompt history](ntf-prompt-history.md) — Android Kotlin/Compose app; prompts add features incrementally, never rewrite architecture.
 - [NTF Phase 1 Resources Module](ntf-phase1-resources.md) — Folder hierarchy, scope-based filter pattern, PDF URL fallback, PiP, lecture resume, M2 gotcha.
-- [NTF Phase 4 Emoji→Icon Redesign](ntf-phase4-emoji-icons.md) — All decorative emojis replaced with Material Icons across all UI screens; AchievementUnlockData.emoji renamed to .icon (ImageVector).
+- [NTF Phase 4 M3 UI Overhaul](ntf-phase4-emoji-icons.md) — Phase 4A complete: neon/dark gaming UI fully replaced with M3 Card/Surface/Button/TabRow across all major screens; brace-wrap pattern documented.

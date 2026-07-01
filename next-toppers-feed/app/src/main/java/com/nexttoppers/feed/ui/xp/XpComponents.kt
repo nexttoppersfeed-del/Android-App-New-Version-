@@ -2,7 +2,6 @@ package com.nexttoppers.feed.ui.xp
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -13,7 +12,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +28,14 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,11 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -87,31 +89,27 @@ fun LevelProgressBar(xp: Long, modifier: Modifier = Modifier) {
             verticalAlignment     = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .background(
-                            Brush.linearGradient(listOf(NeonGreen, NeonCyan)),
-                            RoundedCornerShape(10.dp)
-                        ),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    shape  = RoundedCornerShape(10.dp),
+                    color  = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(32.dp)
                 ) {
-                    Text(
-                        "$level",
-                        color      = BackgroundBlack,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize   = 13.sp
-                    )
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp)) {
+                        Text(
+                            "$level",
+                            color      = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize   = 13.sp
+                        )
+                    }
                 }
                 Spacer(Modifier.width(8.dp))
                 Column {
                     Text(
                         title,
-                        style = TextStyle(
-                            fontWeight = FontWeight.Bold,
-                            fontSize   = 13.sp,
-                            brush      = Brush.linearGradient(listOf(NeonGreen, NeonCyan))
-                        )
+                        fontWeight = FontWeight.Bold,
+                        fontSize   = 13.sp,
+                        color      = NeonGreen
                     )
                     Text("$xp XP total", color = TextMuted, fontSize = 10.sp)
                 }
@@ -122,6 +120,7 @@ fun LevelProgressBar(xp: Long, modifier: Modifier = Modifier) {
             }
         }
 
+        // Progress bar using M3 surface colors
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -136,76 +135,51 @@ fun LevelProgressBar(xp: Long, modifier: Modifier = Modifier) {
                     .clip(RoundedCornerShape(50.dp))
                     .background(Brush.horizontalGradient(listOf(NeonGreen, NeonCyan)))
             )
-            if (animatedProgress > 0.02f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(animatedProgress)
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(50.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(Color.Transparent, NeonGreen.copy(0.35f))
-                            )
-                        )
-                )
-            }
         }
     }
 }
 
-// ── Glowing level card ─────────────────────────────────────────────────────────
+// ── Level card (Material 3 ElevatedCard) ───────────────────────────────────────
 @Composable
 fun GlowingLevelCard(xp: Long, modifier: Modifier = Modifier) {
     val level = LevelUtils.levelForXp(xp)
-    val infiniteTransition = rememberInfiniteTransition(label = "glow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue  = 0.3f,
-        targetValue   = 0.7f,
-        animationSpec = infiniteRepeatable(tween(1500, easing = LinearEasing), RepeatMode.Reverse),
-        label         = "glowAlpha"
-    )
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(NeonGreen.copy(glowAlpha * 0.15f), SurfaceCard),
-                    radius = 400f
-                )
-            )
-            .border(
-                1.5.dp,
-                Brush.linearGradient(listOf(NeonGreen.copy(glowAlpha), NeonCyan.copy(glowAlpha))),
-                RoundedCornerShape(20.dp)
-            )
-            .padding(16.dp)
+    ElevatedCard(
+        modifier  = modifier,
+        shape     = RoundedCornerShape(20.dp),
+        colors    = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            modifier              = Modifier.padding(16.dp),
+            verticalArrangement   = Arrangement.spacedBy(12.dp)
+        ) {
             Row(
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(
-                            Brush.linearGradient(listOf(NeonGreen, NeonCyan)),
-                            RoundedCornerShape(14.dp)
-                        ),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    shape  = RoundedCornerShape(14.dp),
+                    color  = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(Icons.Rounded.Star, null, tint = BackgroundBlack, modifier = Modifier.size(26.dp))
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
+                        Icon(
+                            Icons.Rounded.Star,
+                            null,
+                            tint     = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
                 Column {
                     Text(
                         "Level $level — ${LevelUtils.levelTitle(level)}",
-                        style = TextStyle(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize   = 15.sp,
-                            brush      = Brush.linearGradient(listOf(NeonGreen, NeonCyan)),
-                            shadow     = Shadow(NeonGreen.copy(0.4f), Offset.Zero, 12f)
-                        )
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize   = 15.sp,
+                        color      = NeonGreen
                     )
                     Text("$xp XP earned", color = TextSecondary, fontSize = 12.sp)
                 }
@@ -215,7 +189,7 @@ fun GlowingLevelCard(xp: Long, modifier: Modifier = Modifier) {
     }
 }
 
-// ── Streak card ───────────────────────────────────────────────────────────────
+// ── Streak card (Material 3 Card) ─────────────────────────────────────────────
 @Composable
 fun StreakCard(streak: Int, modifier: Modifier = Modifier) {
     val streakColor = when {
@@ -233,14 +207,18 @@ fun StreakCard(streak: Int, modifier: Modifier = Modifier) {
         label         = "flameScale"
     )
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(streakColor.copy(0.08f))
-            .border(1.dp, streakColor.copy(0.3f), RoundedCornerShape(20.dp))
-            .padding(16.dp)
+    Card(
+        modifier  = modifier,
+        shape     = RoundedCornerShape(20.dp),
+        colors    = CardDefaults.cardColors(
+            containerColor = streakColor.copy(0.08f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier              = Modifier.padding(16.dp),
+            verticalArrangement   = Arrangement.spacedBy(8.dp)
+        ) {
             Row(
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -259,14 +237,9 @@ fun StreakCard(streak: Int, modifier: Modifier = Modifier) {
             ) {
                 Text(
                     "$streak",
-                    style = TextStyle(
-                        fontSize   = 36.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        brush      = if (streak > 0)
-                            Brush.linearGradient(listOf(streakColor, PremiumGold))
-                        else Brush.linearGradient(listOf(TextSecondary, TextSecondary)),
-                        shadow     = if (streak > 0) Shadow(streakColor.copy(0.4f), Offset.Zero, 14f) else null
-                    )
+                    fontSize   = 36.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color      = if (streak > 0) streakColor else TextSecondary
                 )
                 Text("days", color = TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(bottom = 6.dp))
             }
@@ -285,7 +258,7 @@ fun StreakCard(streak: Int, modifier: Modifier = Modifier) {
     }
 }
 
-// ── Rank card ─────────────────────────────────────────────────────────────────
+// ── Rank card (Material 3 Card) ───────────────────────────────────────────────
 @Composable
 fun RankCard(rank: Int, xp: Long, modifier: Modifier = Modifier) {
     val rankColor = when {
@@ -295,14 +268,18 @@ fun RankCard(rank: Int, xp: Long, modifier: Modifier = Modifier) {
         else       -> TextSecondary
     }
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(rankColor.copy(0.08f))
-            .border(1.dp, rankColor.copy(0.3f), RoundedCornerShape(20.dp))
-            .padding(16.dp)
+    Card(
+        modifier  = modifier,
+        shape     = RoundedCornerShape(20.dp),
+        colors    = CardDefaults.cardColors(
+            containerColor = rankColor.copy(0.08f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier            = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Row(
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -316,23 +293,21 @@ fun RankCard(rank: Int, xp: Long, modifier: Modifier = Modifier) {
             ) {
                 if (rank in 1..3) {
                     val medalColors = listOf(PremiumGold, Color(0xFFC0C0C0), Color(0xFFCD7F32))
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(medalColors[rank - 1].copy(0.15f), RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
+                    Surface(
+                        shape  = RoundedCornerShape(12.dp),
+                        color  = medalColors[rank - 1].copy(0.15f),
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Text("#$rank", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = medalColors[rank - 1])
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
+                            Text("#$rank", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = medalColors[rank - 1])
+                        }
                     }
                 } else {
                     Text(
                         if (rank > 0) "#$rank" else "–",
-                        style = TextStyle(
-                            fontSize   = 32.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            brush      = Brush.linearGradient(listOf(rankColor, NeonCyan)),
-                            shadow     = Shadow(rankColor.copy(0.3f), Offset.Zero, 10f)
-                        )
+                        fontSize   = 32.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = rankColor
                     )
                 }
                 Column {
@@ -348,7 +323,7 @@ fun RankCard(rank: Int, xp: Long, modifier: Modifier = Modifier) {
     }
 }
 
-// ── Level-up dialog ───────────────────────────────────────────────────────────
+// ── Level-up dialog (Material 3 AlertDialog) ──────────────────────────────────
 @Composable
 fun LevelUpDialog(newLevel: Int, onDismiss: () -> Unit) {
     var visible by remember { mutableStateOf(false) }
@@ -359,60 +334,47 @@ fun LevelUpDialog(newLevel: Int, onDismiss: () -> Unit) {
             visible = visible,
             enter   = fadeIn(tween(300)) + scaleIn(tween(300, easing = FastOutSlowInEasing), 0.8f)
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(NeonGreen.copy(0.12f), SurfaceCard),
-                            radius = 600f
-                        )
-                    )
-                    .border(
-                        2.dp,
-                        Brush.linearGradient(listOf(NeonGreen, NeonCyan)),
-                        RoundedCornerShape(28.dp)
-                    )
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
+            ElevatedCard(
+                shape     = RoundedCornerShape(28.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp)
             ) {
                 Column(
+                    modifier            = Modifier.padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .background(NeonGreen.copy(0.12f), RoundedCornerShape(20.dp))
-                            .border(1.5.dp, NeonGreen.copy(0.35f), RoundedCornerShape(20.dp)),
-                        contentAlignment = Alignment.Center
+                    Surface(
+                        shape  = RoundedCornerShape(20.dp),
+                        color  = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(72.dp)
                     ) {
-                        Icon(Icons.Rounded.Bolt, null, tint = NeonGreen, modifier = Modifier.size(42.dp))
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(72.dp)) {
+                            Icon(
+                                Icons.Rounded.Bolt,
+                                null,
+                                tint     = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(42.dp)
+                            )
+                        }
                     }
 
                     Text(
                         "LEVEL UP!",
-                        style = TextStyle(
-                            fontSize   = 28.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            brush      = Brush.linearGradient(listOf(NeonGreen, NeonCyan)),
-                            shadow     = Shadow(NeonGreen.copy(0.5f), Offset.Zero, 20f)
-                        )
+                        fontSize   = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = NeonGreen
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                Brush.linearGradient(listOf(NeonGreen, NeonCyan)),
-                                RoundedCornerShape(50.dp)
-                            )
-                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                    Surface(
+                        shape = RoundedCornerShape(50.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Text(
                             "Level $newLevel — ${LevelUtils.levelTitle(newLevel)}",
-                            color      = BackgroundBlack,
+                            color      = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize   = 14.sp
+                            fontSize   = 14.sp,
+                            modifier   = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                         )
                     }
 
@@ -423,22 +385,12 @@ fun LevelUpDialog(newLevel: Int, onDismiss: () -> Unit) {
                         textAlign = TextAlign.Center
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(NeonGreen.copy(0.15f))
-                            .border(1.dp, NeonGreen.copy(0.5f), RoundedCornerShape(14.dp))
-                            .clickable(onClick = onDismiss),
-                        contentAlignment = Alignment.Center
+                    Button(
+                        onClick   = onDismiss,
+                        modifier  = Modifier.fillMaxWidth(),
+                        shape     = RoundedCornerShape(14.dp)
                     ) {
-                        Text(
-                            "Awesome!",
-                            color      = NeonGreen,
-                            fontWeight = FontWeight.Bold,
-                            fontSize   = 15.sp
-                        )
+                        Text("Awesome!", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                 }
             }

@@ -126,24 +126,9 @@ fun DownloadsScreen(
 
                 Text(
                     text = "Offline Library",
-
-                    style = TextStyle(
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-
-                        brush = Brush.linearGradient(
-                            listOf(
-                                NeonGreen,
-                                NeonCyan
-                            )
-                        ),
-
-                        shadow = Shadow(
-                            NeonGreen.copy(0.3f),
-                            Offset.Zero,
-                            14f
-                        )
-                    )
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TextPrimary
                 )
 
                 Text(
@@ -222,7 +207,7 @@ fun DownloadsScreen(
                             Icon(
                                 Icons.Rounded.DeleteSweep,
                                 contentDescription = null,
-                                tint = Color.Red
+                                tint = androidx.compose.material3.MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -328,7 +313,7 @@ fun DownloadsScreen(
 
                         Text(
                             "Clear",
-                            color = Color.Red
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.error
                         )
                     }
                 },
@@ -388,83 +373,71 @@ private fun DownloadedResourceCard(
                 }
     ) {
 
-        val accent =
-            resourceTypeAccent(resource.type)
+        val accent = resourceTypeAccent(resource.type)
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(SurfaceCard)
-                .border(
-                    1.dp,
-                    accent.copy(0.2f),
-                    RoundedCornerShape(16.dp)
-                )
-                .padding(14.dp),
-
-            verticalAlignment = Alignment.CenterVertically
+        androidx.compose.material3.Card(
+            modifier  = Modifier.fillMaxWidth(),
+            shape     = RoundedCornerShape(16.dp),
+            colors    = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+            ),
+            elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .background(
-                        accent.copy(0.12f),
-                        RoundedCornerShape(13.dp)
-                    ),
-
-                contentAlignment = Alignment.Center
+            Row(
+                modifier          = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
 
-                Icon(
-                    resourceTypeIcon(resource.type),
-                    contentDescription = null,
-                    tint = accent
-                )
-            }
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(
+                            accent.copy(0.12f),
+                            RoundedCornerShape(13.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        resourceTypeIcon(resource.type),
+                        contentDescription = null,
+                        tint = accent
+                    )
+                }
 
-            Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(12.dp))
 
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+                Column(modifier = Modifier.weight(1f)) {
 
-                Text(
-                    text = resource.title,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                    Text(
+                        text       = resource.title,
+                        color      = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        maxLines   = 2,
+                        overflow   = TextOverflow.Ellipsis
+                    )
 
-                Text(
-                    text = resource.subject,
-                    color = TextMuted,
-                    fontSize = 12.sp
-                )
-            }
+                    Text(
+                        text  = resource.subject,
+                        color = TextMuted,
+                        fontSize = 12.sp
+                    )
+                }
 
-            IconButton(
-                onClick = onOpen
-            ) {
+                IconButton(onClick = onOpen) {
+                    Icon(
+                        Icons.Rounded.OpenInNew,
+                        contentDescription = null,
+                        tint = NeonGreen
+                    )
+                }
 
-                Icon(
-                    Icons.Rounded.OpenInNew,
-                    contentDescription = null,
-                    tint = NeonGreen
-                )
-            }
-
-            IconButton(
-                onClick = onDelete
-            ) {
-
-                Icon(
-                    Icons.Rounded.Delete,
-                    contentDescription = null,
-                    tint = Color.Red
-                )
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Rounded.Delete,
+                        contentDescription = null,
+                        tint = androidx.compose.material3.MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }
@@ -476,14 +449,16 @@ private fun RecentMiniCard(
     onClick: () -> Unit
 ) {
 
-    Column(
-        modifier = Modifier
-            .width(130.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(SurfaceCard)
-            .clickable(onClick = onClick)
-            .padding(12.dp)
+    androidx.compose.material3.Card(
+        onClick   = onClick,
+        modifier  = Modifier.width(130.dp),
+        shape     = RoundedCornerShape(14.dp),
+        colors    = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
+    Column(modifier = Modifier.padding(12.dp)) {
 
         Text(
             text = item.title,
@@ -503,6 +478,7 @@ private fun RecentMiniCard(
             color = TextMuted,
             fontSize = 10.sp
         )
+    }
     }
 }
 

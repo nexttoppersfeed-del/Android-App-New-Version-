@@ -5,8 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccessTime
@@ -31,7 +30,11 @@ import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.RemoveRedEye
 import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -58,8 +60,6 @@ import com.nexttoppers.feed.ui.theme.BackgroundBlack
 import com.nexttoppers.feed.ui.theme.NeonCyan
 import com.nexttoppers.feed.ui.theme.NeonGreen
 import com.nexttoppers.feed.ui.theme.PremiumGold
-import com.nexttoppers.feed.ui.theme.SurfaceCard
-import com.nexttoppers.feed.ui.theme.SurfaceElevated
 import com.nexttoppers.feed.ui.theme.TextMuted
 import com.nexttoppers.feed.ui.theme.TextPrimary
 import com.nexttoppers.feed.ui.theme.TextSecondary
@@ -78,91 +78,98 @@ fun ResourceListCard(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(280, delayMillis = index * 60)) +
-                slideInVertically(tween(280, delayMillis = index * 60)) { it / 4 }
+        enter   = fadeIn(tween(280, delayMillis = index * 60)) +
+                  slideInVertically(tween(280, delayMillis = index * 60)) { it / 4 }
     ) {
         val typeAccent = resourceTypeAccent(resource.type)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(SurfaceCard)
-                .border(1.dp, typeAccent.copy(0.2f), RoundedCornerShape(16.dp))
-                .clickable(onClick = onClick)
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Card(
+            onClick  = onClick,
+            modifier = Modifier.fillMaxWidth(),
+            shape    = RoundedCornerShape(16.dp),
+            colors   = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            // Thumbnail / type icon box
-            Box(
-                modifier = Modifier
-                    .size(58.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(typeAccent.copy(0.12f)),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier          = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (resource.thumbnailUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = resource.thumbnailUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp))
-                    )
-                } else {
-                    Icon(
-                        imageVector = resourceTypeIcon(resource.type),
-                        contentDescription = null,
-                        tint = typeAccent,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-                if (resource.premium) {
-                    Box(
-                        modifier = Modifier.align(Alignment.TopEnd)
-                            .size(16.dp)
-                            .background(PremiumGold, RoundedCornerShape(4.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Rounded.Lock, null, tint = BackgroundBlack, modifier = Modifier.size(10.dp))
+                // Thumbnail / type icon
+                Box(
+                    modifier         = Modifier
+                        .size(58.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(typeAccent.copy(0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (resource.thumbnailUrl.isNotEmpty()) {
+                        AsyncImage(
+                            model             = resource.thumbnailUrl,
+                            contentDescription = null,
+                            contentScale      = ContentScale.Crop,
+                            modifier          = Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp))
+                        )
+                    } else {
+                        Icon(
+                            imageVector        = resourceTypeIcon(resource.type),
+                            contentDescription = null,
+                            tint               = typeAccent,
+                            modifier           = Modifier.size(28.dp)
+                        )
                     }
-                }
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Type chip
-                TypeChip(type = resource.type, accent = typeAccent)
-                Text(
-                    resource.title,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (resource.isLecture() && resource.duration.isNotEmpty()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.AccessTime, null, tint = TextMuted, modifier = Modifier.size(11.dp))
-                            Spacer(Modifier.width(3.dp))
-                            Text(resource.duration, color = TextMuted, fontSize = 11.sp)
+                    if (resource.premium) {
+                        Box(
+                            modifier         = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(16.dp)
+                                .background(PremiumGold, RoundedCornerShape(4.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Rounded.Lock, null, tint = BackgroundBlack, modifier = Modifier.size(10.dp))
                         }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.RemoveRedEye, null, tint = TextMuted, modifier = Modifier.size(11.dp))
-                        Spacer(Modifier.width(3.dp))
-                        Text("${resource.views}", color = TextMuted, fontSize = 11.sp)
-                    }
-                    Text(
-                        SimpleDateFormat("d MMM", Locale.getDefault()).format(resource.createdAt.toDate()),
-                        color = TextMuted,
-                        fontSize = 11.sp
-                    )
                 }
-            }
 
-            if (resource.isLecture()) {
-                Icon(Icons.Rounded.PlayCircle, null, tint = typeAccent, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(12.dp))
+
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TypeChip(type = resource.type, accent = typeAccent)
+                    Text(
+                        resource.title,
+                        color      = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize   = 14.sp,
+                        maxLines   = 2,
+                        overflow   = TextOverflow.Ellipsis
+                    )
+                    Row(
+                        verticalAlignment     = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (resource.isLecture() && resource.duration.isNotEmpty()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Rounded.AccessTime, null, tint = TextMuted, modifier = Modifier.size(11.dp))
+                                Spacer(Modifier.width(3.dp))
+                                Text(resource.duration, color = TextMuted, fontSize = 11.sp)
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.RemoveRedEye, null, tint = TextMuted, modifier = Modifier.size(11.dp))
+                            Spacer(Modifier.width(3.dp))
+                            Text("${resource.views}", color = TextMuted, fontSize = 11.sp)
+                        }
+                        Text(
+                            SimpleDateFormat("d MMM", Locale.getDefault()).format(resource.createdAt.toDate()),
+                            color    = TextMuted,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                if (resource.isLecture()) {
+                    Icon(Icons.Rounded.PlayCircle, null, tint = typeAccent, modifier = Modifier.size(28.dp))
+                }
             }
         }
     }
@@ -176,60 +183,71 @@ fun ResourceGridCard(resource: Resource, index: Int = 0, onClick: () -> Unit) {
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(300, delayMillis = index * 50))
+        enter   = fadeIn(tween(300, delayMillis = index * 50))
     ) {
         val typeAccent = resourceTypeAccent(resource.type)
-        Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(18.dp))
-                .background(SurfaceCard)
-                .border(1.dp, typeAccent.copy(0.2f), RoundedCornerShape(18.dp))
-                .clickable(onClick = onClick)
+        Card(
+            onClick   = onClick,
+            modifier  = Modifier.fillMaxWidth(),
+            shape     = RoundedCornerShape(18.dp),
+            colors    = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            // Thumbnail area
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .background(typeAccent.copy(0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (resource.thumbnailUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = resource.thumbnailUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+            Column {
+                // Thumbnail area
+                Box(
+                    modifier         = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                        .background(typeAccent.copy(0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (resource.thumbnailUrl.isNotEmpty()) {
+                        AsyncImage(
+                            model             = resource.thumbnailUrl,
+                            contentDescription = null,
+                            contentScale      = ContentScale.Crop,
+                            modifier          = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(resourceTypeIcon(resource.type), null, tint = typeAccent, modifier = Modifier.size(34.dp))
+                    }
+                    if (resource.premium) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .background(PremiumGold, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text("PRO", color = BackgroundBlack, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                        }
+                    }
+                    if (resource.isLecture()) {
+                        Box(
+                            modifier         = Modifier
+                                .size(40.dp)
+                                .background(BackgroundBlack.copy(0.6f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Rounded.PlayCircle, null, tint = NeonGreen, modifier = Modifier.size(28.dp))
+                        }
+                    }
+                }
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TypeChip(type = resource.type, accent = typeAccent)
+                    Text(
+                        resource.title,
+                        color      = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize   = 13.sp,
+                        maxLines   = 2,
+                        overflow   = TextOverflow.Ellipsis
                     )
-                } else {
-                    Icon(resourceTypeIcon(resource.type), null, tint = typeAccent, modifier = Modifier.size(34.dp))
+                    Text("${resource.views} views", color = TextMuted, fontSize = 10.sp)
                 }
-                if (resource.premium) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .background(PremiumGold, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text("PRO", color = BackgroundBlack, fontWeight = FontWeight.Bold, fontSize = 9.sp)
-                    }
-                }
-                if (resource.isLecture()) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(BackgroundBlack.copy(0.6f), RoundedCornerShape(50.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Rounded.PlayCircle, null, tint = NeonGreen, modifier = Modifier.size(28.dp))
-                    }
-                }
-            }
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                TypeChip(type = resource.type, accent = typeAccent)
-                Text(resource.title, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text("${resource.views} views", color = TextMuted, fontSize = 10.sp)
             }
         }
     }
@@ -239,32 +257,47 @@ fun ResourceGridCard(resource: Resource, index: Int = 0, onClick: () -> Unit) {
 @Composable
 fun ResourceMiniCard(resource: Resource, onClick: () -> Unit) {
     val typeAccent = resourceTypeAccent(resource.type)
-    Column(
-        modifier = Modifier
-            .width(150.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(SurfaceCard)
-            .border(1.dp, typeAccent.copy(0.2f), RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
+    Card(
+        onClick   = onClick,
+        modifier  = Modifier.width(150.dp),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().height(80.dp).background(typeAccent.copy(0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (resource.thumbnailUrl.isNotEmpty()) {
-                AsyncImage(
-                    model = resource.thumbnailUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Icon(resourceTypeIcon(resource.type), null, tint = typeAccent, modifier = Modifier.size(28.dp))
+        Column {
+            Box(
+                modifier         = Modifier.fillMaxWidth().height(80.dp).background(typeAccent.copy(0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (resource.thumbnailUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model             = resource.thumbnailUrl,
+                        contentDescription = null,
+                        contentScale      = ContentScale.Crop,
+                        modifier          = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(resourceTypeIcon(resource.type), null, tint = typeAccent, modifier = Modifier.size(28.dp))
+                }
             }
-        }
-        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(resource.type.lowercase().replaceFirstChar { it.uppercase() }, color = typeAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text(resource.title, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    resource.type.lowercase().replaceFirstChar { it.uppercase() },
+                    color      = typeAccent,
+                    fontSize   = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    resource.title,
+                    color      = MaterialTheme.colorScheme.onSurface,
+                    fontSize   = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines   = 2,
+                    overflow   = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -274,13 +307,18 @@ fun ResourceMiniCard(resource: Resource, onClick: () -> Unit) {
 fun TypeChip(type: String, accent: Color) {
     val typeEnum = ResourceType.values().firstOrNull { it.name.equals(type, ignoreCase = true) }
     val label = typeEnum?.let { "${it.emoji} ${it.displayName}" } ?: type
-    Box(
-        modifier = Modifier
-            .background(accent.copy(0.12f), RoundedCornerShape(6.dp))
-            .border(1.dp, accent.copy(0.3f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = accent.copy(0.12f),
+        tonalElevation = 0.dp
     ) {
-        Text(label, color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(
+            label,
+            color      = accent,
+            fontSize   = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier   = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
     }
 }
 

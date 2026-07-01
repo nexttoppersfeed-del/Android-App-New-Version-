@@ -95,35 +95,25 @@ fun PremiumBadge(
 ) {
     if (badge == MembershipBadge.NONE) return
     val colors = badgeColors(badge)
-    val transition = rememberInfiniteTransition(label = "badge")
-    val glowAlpha by transition.animateFloat(
-        initialValue  = 0.4f,
-        targetValue   = 0.9f,
-        animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Reverse),
-        label         = "badgeGlow"
-    )
-    Row(
-        modifier = modifier
-            .background(
-                Brush.horizontalGradient(colors.map { it.copy(0.18f) }),
-                RoundedCornerShape(50.dp)
-            )
-            .border(
-                1.dp,
-                Brush.horizontalGradient(colors.map { it.copy(glowAlpha) }),
-                RoundedCornerShape(50.dp)
-            )
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        verticalAlignment     = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    androidx.compose.material3.Surface(
+        shape  = RoundedCornerShape(50.dp),
+        color  = colors.first().copy(0.18f),
+        modifier = modifier,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.first().copy(0.5f))
     ) {
-        BadgeIcon(badge, modifier = Modifier.size(12.dp))
-        Text(
-            badge.label,
-            color      = colors.first(),
-            fontWeight = FontWeight.ExtraBold,
-            fontSize   = 10.sp
-        )
+        Row(
+            modifier              = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            BadgeIcon(badge, modifier = Modifier.size(12.dp))
+            Text(
+                badge.label,
+                color      = colors.first(),
+                fontWeight = FontWeight.ExtraBold,
+                fontSize   = 10.sp
+            )
+        }
     }
 }
 
@@ -152,24 +142,19 @@ fun PremiumBannerCard(
     if (isPremium) {
         // Premium member — show status card
         val colors = badgeColors(membership.badge)
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Brush.horizontalGradient(colors.map { it.copy(0.12f) }))
-                .border(1.5.dp, Brush.horizontalGradient(colors.map { it.copy(glowAlpha) }), RoundedCornerShape(20.dp))
-                .drawBehind {
-                    drawRect(
-                        Brush.horizontalGradient(
-                            colors = listOf(Color.Transparent, colors.first().copy(0.08f), Color.Transparent),
-                            startX = shimmer - 300f,
-                            endX   = shimmer
-                        )
-                    )
-                }
-                .padding(18.dp)
+        androidx.compose.material3.Card(
+            modifier  = modifier.fillMaxWidth(),
+            shape     = RoundedCornerShape(20.dp),
+            colors    = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = colors.first().copy(0.10f)
+            ),
+            elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border    = androidx.compose.foundation.BorderStroke(1.5.dp, colors.first().copy(0.5f))
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier          = Modifier.padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Icon(Icons.Rounded.WorkspacePremium, null, tint = colors.first(), modifier = Modifier.size(32.dp))
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
@@ -190,37 +175,29 @@ fun PremiumBannerCard(
             }
         }
     } else {
-        // Free user — upgrade CTA with shimmer border
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Brush.horizontalGradient(listOf(PremiumGold.copy(0.08f), PremiumViolet.copy(0.06f))))
-                .border(
-                    1.5.dp,
-                    Brush.horizontalGradient(listOf(PremiumGold.copy(glowAlpha), PremiumViolet.copy(glowAlpha * 0.7f))),
-                    RoundedCornerShape(20.dp)
-                )
-                .drawBehind {
-                    drawRect(
-                        Brush.horizontalGradient(
-                            colors = listOf(Color.Transparent, PremiumGold.copy(0.06f), Color.Transparent),
-                            startX = shimmer - 300f,
-                            endX   = shimmer
-                        )
-                    )
-                }
-                .clickable(onClick = onUpgradeClick)
-                .padding(18.dp)
+        // Free user — upgrade CTA
+        androidx.compose.material3.Card(
+            onClick   = onUpgradeClick,
+            modifier  = modifier.fillMaxWidth(),
+            shape     = RoundedCornerShape(20.dp),
+            colors    = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = PremiumGold.copy(0.07f)
+            ),
+            elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border    = androidx.compose.foundation.BorderStroke(1.5.dp, PremiumGold.copy(0.45f))
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(PremiumGold.copy(0.12f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
+            Row(
+                modifier          = Modifier.padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                androidx.compose.material3.Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = PremiumGold.copy(0.12f),
+                    modifier = Modifier.size(44.dp)
                 ) {
-                    Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(26.dp))
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(26.dp))
+                    }
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
@@ -238,9 +215,8 @@ fun PremiumBannerCard(
                 }
                 Spacer(Modifier.width(8.dp))
                 Column(
-                    modifier = Modifier
+                    modifier            = Modifier
                         .background(PremiumGold.copy(0.15f), RoundedCornerShape(12.dp))
-                        .border(1.dp, PremiumGold.copy(0.5f), RoundedCornerShape(12.dp))
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -274,19 +250,22 @@ fun CurrentMembershipCard(
         Pair(listOf(TextMuted, TextMuted), listOf(SurfaceCard, SurfaceElevated))
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Brush.horizontalGradient(bgColors))
-            .border(
-                1.5.dp,
-                Brush.horizontalGradient(borderColors.map { it.copy(if (membership.isActive) glowAlpha else 0.25f) }),
-                RoundedCornerShape(20.dp)
-            )
-            .padding(18.dp)
+    androidx.compose.material3.Card(
+        modifier  = modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(20.dp),
+        colors    = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = if (membership.isActive) borderColors.first().copy(0.08f) else SurfaceCard
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border    = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            borderColors.first().copy(if (membership.isActive) 0.5f else 0.25f)
+        )
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier            = Modifier.padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment     = Alignment.CenterVertically,
@@ -312,13 +291,17 @@ fun CurrentMembershipCard(
                     }
                 }
                 if (membership.isActive) {
-                    Box(
-                        modifier = Modifier
-                            .background(NeonGreen.copy(0.15f), RoundedCornerShape(8.dp))
-                            .border(1.dp, NeonGreen.copy(0.5f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = NeonGreen.copy(0.15f)
                     ) {
-                        Text("ACTIVE", color = NeonGreen, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
+                        Text(
+                            "ACTIVE",
+                            color      = NeonGreen,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize   = 10.sp,
+                            modifier   = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
                 }
             }
@@ -405,25 +388,28 @@ fun MembershipPlanCard(
     )
 
     val badgeColors = badgeColors(plan.badge)
-    val borderBrush = if (isSelected)
-        Brush.linearGradient(badgeColors.map { it.copy(glowAlpha) })
-    else
-        Brush.linearGradient(listOf(TextMuted.copy(0.2f), TextMuted.copy(0.2f)))
 
-    Box(
-        modifier = modifier
+    androidx.compose.material3.Card(
+        onClick   = onClick,
+        modifier  = modifier
             .fillMaxWidth()
-            .scale(if (isSelected) selectedScale else 1f)
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                if (isSelected) Brush.linearGradient(badgeColors.map { it.copy(0.1f) })
-                else Brush.linearGradient(listOf(SurfaceCard, SurfaceCard))
-            )
-            .border(if (isSelected) 1.5.dp else 1.dp, borderBrush, RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .padding(16.dp)
+            .scale(if (isSelected) selectedScale else 1f),
+        shape     = RoundedCornerShape(20.dp),
+        colors    = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = if (isSelected) badgeColors.first().copy(0.09f) else SurfaceCard
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 2.dp else 0.dp
+        ),
+        border    = androidx.compose.foundation.BorderStroke(
+            if (isSelected) 1.5.dp else 1.dp,
+            if (isSelected) badgeColors.first().copy(0.6f) else TextMuted.copy(0.2f)
+        )
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        modifier            = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
             // Header row: name + recommended/savings badge
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -436,21 +422,31 @@ fun MembershipPlanCard(
                     )
                 }
                 if (plan.isRecommended) {
-                    Box(
-                        modifier = Modifier
-                            .background(Brush.horizontalGradient(badgeColors), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = badgeColors.first().copy(0.85f)
                     ) {
-                        Text("Recommended", color = BackgroundBlack, fontWeight = FontWeight.ExtraBold, fontSize = 9.sp)
+                        Text(
+                            "Recommended",
+                            color      = SurfaceCard,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize   = 9.sp,
+                            modifier   = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
                 } else if (plan.savingsLabel.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .background(PremiumGold.copy(0.15f), RoundedCornerShape(8.dp))
-                            .border(1.dp, PremiumGold.copy(0.5f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    androidx.compose.material3.Surface(
+                        shape  = RoundedCornerShape(8.dp),
+                        color  = PremiumGold.copy(0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, PremiumGold.copy(0.5f))
                     ) {
-                        Text(plan.savingsLabel, color = PremiumGold, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                        Text(
+                            plan.savingsLabel,
+                            color      = PremiumGold,
+                            fontWeight = FontWeight.Bold,
+                            fontSize   = 9.sp,
+                            modifier   = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
                 }
             }
@@ -506,14 +502,14 @@ fun PremiumBenefitItem(
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .background(PremiumGold.copy(0.1f), RoundedCornerShape(12.dp))
-                .border(1.dp, PremiumGold.copy(0.3f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
+        androidx.compose.material3.Surface(
+            shape    = RoundedCornerShape(12.dp),
+            color    = PremiumGold.copy(0.10f),
+            modifier = Modifier.size(42.dp)
         ) {
-            Icon(icon, null, tint = PremiumGold, modifier = Modifier.size(20.dp))
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(42.dp)) {
+                Icon(icon, null, tint = PremiumGold, modifier = Modifier.size(20.dp))
+            }
         }
         Column {
             Text(title, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -522,37 +518,31 @@ fun PremiumBenefitItem(
     }
 }
 
-// ── UpgradeDialog — shown when locked content is tapped ───────────────────────
+// ── UpgradeDialog — shown when locked content is tapped (M3 ElevatedCard) ─────
 @Composable
 fun UpgradeDialog(
     onDismiss: () -> Unit,
     onUpgrade: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(28.dp))
-                .background(SurfaceCard)
-                .border(
-                    1.5.dp,
-                    Brush.linearGradient(listOf(PremiumGold, PremiumViolet)),
-                    RoundedCornerShape(28.dp)
-                )
-                .padding(24.dp)
+        androidx.compose.material3.ElevatedCard(
+            shape     = RoundedCornerShape(28.dp),
+            elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
+            border    = androidx.compose.foundation.BorderStroke(1.5.dp, PremiumGold.copy(0.5f))
         ) {
             Column(
+                modifier            = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(PremiumGold.copy(0.12f), RoundedCornerShape(22.dp))
-                        .border(1.5.dp, Brush.linearGradient(listOf(PremiumGold, PremiumViolet)), RoundedCornerShape(22.dp)),
-                    contentAlignment = Alignment.Center
+                androidx.compose.material3.Surface(
+                    shape    = RoundedCornerShape(22.dp),
+                    color    = PremiumGold.copy(0.12f),
+                    modifier = Modifier.size(80.dp)
                 ) {
-                    Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(48.dp))
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(80.dp)) {
+                        Icon(Icons.Rounded.WorkspacePremium, null, tint = PremiumGold, modifier = Modifier.size(48.dp))
+                    }
                 }
                 Text(
                     "Premium Content",
@@ -563,9 +553,9 @@ fun UpgradeDialog(
                 )
                 Text(
                     "This content is exclusive to Premium members. Upgrade now to unlock all notes, quizzes, and lectures.",
-                    color     = TextSecondary,
-                    fontSize  = 13.sp,
-                    textAlign = TextAlign.Center,
+                    color      = TextSecondary,
+                    fontSize   = 13.sp,
+                    textAlign  = TextAlign.Center,
                     lineHeight = 20.sp
                 )
                 // Benefits preview
@@ -577,24 +567,20 @@ fun UpgradeDialog(
                         }
                     }
                 }
-                // Upgrade button
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Brush.horizontalGradient(listOf(PremiumGold, PremiumViolet)))
-                        .clickable(onClick = onUpgrade)
-                        .padding(vertical = 14.dp),
-                    contentAlignment = Alignment.Center
+                androidx.compose.material3.Button(
+                    onClick  = onUpgrade,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape    = RoundedCornerShape(16.dp),
+                    colors   = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = PremiumGold,
+                        contentColor   = SurfaceCard
+                    )
                 ) {
-                    Text("Upgrade Now • From ₹49", color = BackgroundBlack, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                    Text("Upgrade Now • From ₹49", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
                 }
-                Text(
-                    "Cancel",
-                    color    = TextMuted,
-                    fontSize = 13.sp,
-                    modifier = Modifier.clickable(onClick = onDismiss)
-                )
+                androidx.compose.material3.TextButton(onClick = onDismiss) {
+                    Text("Cancel", color = TextMuted, fontSize = 13.sp)
+                }
             }
         }
     }

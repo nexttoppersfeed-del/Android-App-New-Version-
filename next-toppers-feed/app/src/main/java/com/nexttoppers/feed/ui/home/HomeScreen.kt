@@ -123,11 +123,7 @@ fun HomeScreen(
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundBlack)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val state = uiState) {
             is HomeUiState.Loading -> HomeLoadingSkeleton()
             is HomeUiState.Error   -> {
@@ -288,14 +284,14 @@ private fun SubjectsGrid(onNavigateToSubject: (String) -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .background(subject.color.copy(0.12f), RoundedCornerShape(14.dp))
-                        .border(1.dp, subject.color.copy(0.28f), RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center
+                androidx.compose.material3.Surface(
+                    shape    = RoundedCornerShape(14.dp),
+                    color    = subject.color.copy(0.12f),
+                    modifier = Modifier.size(52.dp)
                 ) {
-                    Icon(subject.icon, null, tint = subject.color, modifier = Modifier.size(24.dp))
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(52.dp)) {
+                        Icon(subject.icon, null, tint = subject.color, modifier = Modifier.size(24.dp))
+                    }
                 }
                 Text(subject.label, fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
             }
@@ -539,14 +535,14 @@ private fun QuickActionButton(item: QuickAction) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .background(item.color.copy(0.12f), RoundedCornerShape(14.dp))
-                .border(1.dp, item.color.copy(0.3f), RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center
+        androidx.compose.material3.Surface(
+            shape    = RoundedCornerShape(14.dp),
+            color    = item.color.copy(0.12f),
+            modifier = Modifier.size(52.dp)
         ) {
-            Icon(item.icon, null, tint = item.color, modifier = Modifier.size(24.dp))
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(52.dp)) {
+                Icon(item.icon, null, tint = item.color, modifier = Modifier.size(24.dp))
+            }
         }
         Text(item.label, fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
     }

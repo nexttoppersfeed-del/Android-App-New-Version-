@@ -110,7 +110,7 @@ fun ProfileScreen(
         if (uiState is ProfileUiState.SignedOut) onSignedOut()
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(BackgroundBlack)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val state = uiState) {
             is ProfileUiState.Loading -> ProfileLoadingSkeleton()
             is ProfileUiState.Error   -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -175,12 +175,9 @@ private fun ProfileContent(
         ) {
             Text(
                 "Profile",
-                style = TextStyle(
-                    fontSize   = 26.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    brush      = Brush.linearGradient(listOf(AccentCyan, AccentViolet)),
-                    shadow     = Shadow(AccentCyan.copy(0.3f), Offset.Zero, 12f)
-                )
+                fontSize   = 26.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color      = TextPrimary
             )
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = onNavigateToSettings, modifier = Modifier.size(40.dp)) {

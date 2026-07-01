@@ -181,31 +181,17 @@ private fun ConnectTopBar(selectedTab: Int, onNewChat: () -> Unit) {
                 fontSize = 12.sp
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             if (selectedTab == 0) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .background(AccentCyan.copy(0.12f), RoundedCornerShape(12.dp))
-                        .border(1.dp, AccentCyan.copy(0.3f), RoundedCornerShape(12.dp))
-                        .clickable(onClick = onNewChat),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Rounded.PersonAdd, null, tint = AccentCyan, modifier = Modifier.size(18.dp))
+                IconButton(onClick = onNewChat) {
+                    Icon(Icons.Rounded.PersonAdd, contentDescription = "New chat", tint = AccentCyan)
                 }
             }
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .background(AccentEmerald.copy(0.12f), RoundedCornerShape(12.dp))
-                    .border(1.dp, AccentEmerald.copy(0.3f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
+            IconButton(onClick = {}) {
                 Icon(
-                    if (selectedTab == 0) Icons.Rounded.Chat else Icons.Rounded.Forum,
-                    null,
-                    tint     = AccentEmerald,
-                    modifier = Modifier.size(18.dp)
+                    if (selectedTab == 0) Icons.Rounded.Edit else Icons.Rounded.Forum,
+                    contentDescription = null,
+                    tint = AccentEmerald
                 )
             }
         }
@@ -215,40 +201,28 @@ private fun ConnectTopBar(selectedTab: Int, onNewChat: () -> Unit) {
 @Composable
 private fun ConnectTabs(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     val tabItems = listOf(Pair("Chats", Icons.Rounded.Chat), Pair("Community", Icons.Rounded.Forum))
-    Row(
-        modifier = Modifier
+    androidx.compose.material3.TabRow(
+        selectedTabIndex = selectedTab,
+        modifier         = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .padding(bottom = 10.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceCard),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            .padding(bottom = 10.dp),
+        containerColor   = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
+        contentColor     = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
     ) {
         tabItems.forEachIndexed { idx, (label, icon) ->
-            val isSelected = selectedTab == idx
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(4.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        if (isSelected) Brush.linearGradient(listOf(AccentEmerald, AccentCyan))
-                        else Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+            androidx.compose.material3.Tab(
+                selected = selectedTab == idx,
+                onClick  = { onTabSelected(idx) },
+                icon     = { Icon(icon, null, modifier = Modifier.size(18.dp)) },
+                text     = {
+                    Text(
+                        label,
+                        fontSize   = 13.sp,
+                        fontWeight = if (selectedTab == idx) FontWeight.Bold else FontWeight.Normal
                     )
-                    .clickable { onTabSelected(idx) }
-                    .padding(vertical = 10.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment     = Alignment.CenterVertically
-            ) {
-                Icon(icon, null, tint = if (isSelected) Color.White else TextMuted, modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    label,
-                    color      = if (isSelected) Color.White else TextMuted,
-                    fontSize   = 13.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                )
-            }
+                }
+            )
         }
     }
 }

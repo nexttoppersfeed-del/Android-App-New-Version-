@@ -89,35 +89,20 @@ fun PinnedAnnouncementBanner(
         label = "pinnedPulse"
     )
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(
-                        ErrorRed.copy(0.13f),
-                        ErrorRed.copy(0.05f)
-                    )
-                )
-            )
-            .border(
-                1.5.dp,
-                ErrorRed.copy(pulseAlpha),
-                RoundedCornerShape(14.dp)
-            )
-            .clickable(
-                onClick = onClick
-            )
-            .padding(12.dp)
+    androidx.compose.material3.OutlinedCard(
+        onClick   = onClick,
+        modifier  = modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(14.dp),
+        colors    = androidx.compose.material3.CardDefaults.outlinedCardColors(
+            containerColor = ErrorRed.copy(0.10f)
+        ),
+        border    = androidx.compose.foundation.BorderStroke(1.5.dp, ErrorRed.copy(pulseAlpha))
     ) {
 
         Row(
-            verticalAlignment =
-            Alignment.CenterVertically,
-
-            horizontalArrangement =
-            Arrangement.spacedBy(10.dp)
+            modifier              = Modifier.padding(12.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
             Icon(
@@ -278,7 +263,7 @@ fun AnnouncementCarouselSection(
                             )
                             .background(
                                 if (isVisible)
-                                    NeonGreen
+                                    androidx.compose.material3.MaterialTheme.colorScheme.primary
                                 else
                                     SurfaceElevated,
 
@@ -310,27 +295,17 @@ private fun AnnouncementCarouselCard(
             NeonGreen
     }
 
-    Box(
-        modifier = modifier
-            .height(130.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        accentColor.copy(0.12f),
-                        SurfaceCard
-                    )
-                )
-            )
-            .border(
-                1.dp,
-                accentColor.copy(0.35f),
-                RoundedCornerShape(18.dp)
-            )
-            .clickable(
-                onClick = onClick
-            )
+    androidx.compose.material3.Card(
+        onClick   = onClick,
+        modifier  = modifier.height(130.dp),
+        shape     = RoundedCornerShape(18.dp),
+        colors    = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = accentColor.copy(0.10f)
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border    = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(0.35f))
     ) {
+    Box {
 
         if (!announcement.imageUrl.isNullOrEmpty()) {
 
@@ -475,6 +450,7 @@ private fun AnnouncementCarouselCard(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -530,33 +506,17 @@ fun UrgentAnnouncementTicker(
         }
     }
 
+    androidx.compose.material3.Surface(
+        onClick   = { onItemClick(current.id) },
+        modifier  = modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(10.dp),
+        color     = ErrorRed.copy(0.08f),
+        border    = androidx.compose.foundation.BorderStroke(1.dp, ErrorRed.copy(0.35f))
+    ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(10.dp)
-            )
-            .background(
-                ErrorRed.copy(0.08f)
-            )
-            .border(
-                1.dp,
-                ErrorRed.copy(0.35f),
-                RoundedCornerShape(10.dp)
-            )
-            .clickable {
-                onItemClick(current.id)
-            }
-            .padding(
-                horizontal = 12.dp,
-                vertical = 8.dp
-            ),
-
-        verticalAlignment =
-        Alignment.CenterVertically,
-
-        horizontalArrangement =
-        Arrangement.spacedBy(8.dp)
+        modifier              = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment     = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
 
         Box(
@@ -612,6 +572,7 @@ fun UrgentAnnouncementTicker(
             modifier =
             Modifier.size(14.dp)
         )
+    }
     }
 }
 

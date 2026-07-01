@@ -253,111 +253,110 @@ fun ResourcesScreen(
 
 @Composable
 private fun SubjectCard(data: SubjectCardData, count: Int, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
+    androidx.compose.material3.Card(
+        onClick   = onClick,
+        modifier  = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(SurfaceCard)
-            .border(1.dp, data.iconBg.copy(0.12f), RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        // Icon
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .background(data.iconBg, RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier          = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                data.icon, null,
-                tint = Color.White,
-                modifier = Modifier.size(26.dp)
-            )
-        }
-        Spacer(Modifier.width(14.dp))
-        // Info
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    data.subject.displayName,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = data.iconBg
-                )
-                Spacer(Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .background(data.iconBg.copy(0.12f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(data.badge, fontSize = 10.sp, color = data.iconBg, fontWeight = FontWeight.SemiBold)
+            // Subject colour icon
+            Box(
+                modifier         = Modifier
+                    .size(52.dp)
+                    .background(data.iconBg, RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(data.icon, null, tint = Color.White, modifier = Modifier.size(26.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+            // Info
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        data.subject.displayName,
+                        fontSize   = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color      = data.iconBg
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = data.iconBg.copy(0.12f)
+                    ) {
+                        Text(
+                            data.badge,
+                            fontSize   = 10.sp,
+                            color      = data.iconBg,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier   = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Text(data.description, fontSize = 12.sp, color = TextSecondary, lineHeight = 17.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Folder, null, tint = TextMuted, modifier = Modifier.size(12.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        if (count > 0) "$count resources" else "Explore",
+                        fontSize = 11.sp,
+                        color    = TextMuted
+                    )
                 }
             }
-            Text(
-                data.description,
-                fontSize = 12.sp,
-                color = TextSecondary,
-                lineHeight = 17.sp
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Folder, null, tint = TextMuted, modifier = Modifier.size(12.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    if (count > 0) "$count resources" else "Explore",
-                    fontSize = 11.sp,
-                    color = TextMuted
-                )
-            }
-        }
-        Spacer(Modifier.width(8.dp))
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .background(data.iconBg.copy(0.12f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Rounded.ChevronRight, null, tint = data.iconBg, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.Rounded.ChevronRight, null, tint = data.iconBg, modifier = Modifier.size(20.dp))
         }
     }
 }
 
 @Composable
 private fun FreeResourcesBanner() {
-    Row(
-        modifier = Modifier
+    androidx.compose.material3.Card(
+        modifier  = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(NeonGreen.copy(0.06f))
-            .border(1.dp, NeonGreen.copy(0.2f), RoundedCornerShape(16.dp))
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = NeonGreen.copy(0.08f)
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(NeonGreen.copy(0.12f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier          = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Rounded.AutoStories, null, tint = NeonGreen, modifier = Modifier.size(22.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(
-                "All resources are free for enrolled students",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
-            Text(
-                "PDFs, lecture recordings, DPPs and more — curated by your teachers.",
-                fontSize = 11.sp,
-                color = TextSecondary,
-                lineHeight = 16.sp
-            )
+            Box(
+                modifier         = Modifier
+                    .size(40.dp)
+                    .background(NeonGreen.copy(0.15f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Rounded.AutoStories, null, tint = NeonGreen, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(
+                    "All resources are free for enrolled students",
+                    fontSize   = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = TextPrimary
+                )
+                Text(
+                    "PDFs, lecture recordings, DPPs and more — curated by your teachers.",
+                    fontSize   = 11.sp,
+                    color      = TextSecondary,
+                    lineHeight = 16.sp
+                )
+            }
         }
     }
 }

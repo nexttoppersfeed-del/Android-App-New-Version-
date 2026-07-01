@@ -147,31 +147,22 @@ fun LeaderboardScreen(viewModel: LeaderboardViewModel = hiltViewModel()) {
                     selectedTabIndex = state.activeTab.ordinal,
                     modifier         = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(SurfaceCard),
-                    containerColor   = Color.Transparent,
-                    indicator        = {},
-                    divider          = {}
+                        .padding(horizontal = 20.dp),
+                    containerColor   = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor     = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                 ) {
                     LeaderboardTab.values().forEachIndexed { idx, tab ->
-                        val selected = state.activeTab == tab
                         Tab(
-                            selected = selected,
+                            selected = state.activeTab == tab,
                             onClick  = { viewModel.selectTab(tab) },
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (selected) AccentCyan else Color.Transparent)
-                        ) {
-                            Text(
-                                text       = tabLabels[idx],
-                                fontSize   = 12.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                color      = if (selected) Color.White else TextSecondary,
-                                modifier   = Modifier.padding(vertical = 8.dp, horizontal = 4.dp)
-                            )
-                        }
+                            text     = {
+                                Text(
+                                    text       = tabLabels[idx],
+                                    fontSize   = 12.sp,
+                                    fontWeight = if (state.activeTab == tab) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        )
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -361,68 +352,72 @@ private fun YourRankStrip(
     onJumpToRank: () -> Unit = {}
 ) {
     val myXp = entries.firstOrNull { it.uid == currentUid }?.xp ?: 0L
-    Row(
-        modifier = Modifier
+    androidx.compose.material3.Card(
+        modifier  = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
-            .padding(bottom = 12.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceCard)
-            .border(1.dp, AccentCyan.copy(0.3f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(bottom = 12.dp),
+        shape     = RoundedCornerShape(12.dp),
+        colors    = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = AccentCyan.copy(0.08f)
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column {
-            Text("Your ranking", fontSize = 11.sp, color = TextMuted)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "#$rank of ${entries.size}",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = TextPrimary
-                )
-                Spacer(Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .background(AccentCyan.copy(0.15f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
+        Row(
+            modifier              = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Your ranking", fontSize = 11.sp, color = TextMuted)
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "${myXp / 1000.0}K XP",
-                        fontSize = 11.sp,
-                        color = AccentCyan,
-                        fontWeight = FontWeight.Bold
+                        "#$rank of ${entries.size}",
+                        fontSize   = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = TextPrimary
                     )
+                    Spacer(Modifier.width(8.dp))
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = AccentCyan.copy(0.15f)
+                    ) {
+                        Text(
+                            "${myXp / 1000.0}K XP",
+                            fontSize   = 11.sp,
+                            color      = AccentCyan,
+                            fontWeight = FontWeight.Bold,
+                            modifier   = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
             }
-        }
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(AccentCyan.copy(0.12f))
-                .clickable(onClick = onJumpToRank)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Rounded.EmojiEvents, null, tint = AccentCyan, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("Jump to my rank", fontSize = 11.sp, color = AccentCyan, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(2.dp))
-            Icon(Icons.Rounded.ArrowForwardIos, null, tint = AccentCyan, modifier = Modifier.size(10.dp))
+            androidx.compose.material3.FilledTonalButton(
+                onClick  = onJumpToRank,
+                shape    = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Rounded.EmojiEvents, null, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Jump to my rank", fontSize = 11.sp)
+            }
         }
     }
 }
 
 @Composable
 private fun PodiumSection(entries: List<LeaderboardEntry>, currentUid: String) {
-    Box(
-        modifier = Modifier
+    androidx.compose.material3.ElevatedCard(
+        modifier  = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceCard)
-            .padding(top = 20.dp, bottom = 0.dp, start = 16.dp, end = 16.dp)
+            .padding(horizontal = 20.dp),
+        shape     = RoundedCornerShape(20.dp),
+        colors    = androidx.compose.material3.CardDefaults.elevatedCardColors(
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+    Box(
+        modifier = Modifier.padding(top = 20.dp, bottom = 0.dp, start = 16.dp, end = 16.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -436,6 +431,7 @@ private fun PodiumSection(entries: List<LeaderboardEntry>, currentUid: String) {
             // Bronze — #3 (right)
             PodiumSlot(entry = entries[2], rank = 3, podiumHeight = 60.dp,  medalColor = Color(0xFFCD7F32), isCurrentUser = entries[2].uid == currentUid)
         }
+    }
     }
 }
 
@@ -549,20 +545,24 @@ private fun LeaderboardRow(
         label         = "fade"
     )
 
-    Row(
-        modifier = Modifier
+    androidx.compose.material3.Card(
+        modifier  = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (isCurrentUser) AccentCyan.copy(0.08f) else SurfaceCard
-            )
-            .border(
-                1.dp,
-                if (isCurrentUser) AccentCyan.copy(0.4f) else Color.Transparent,
-                RoundedCornerShape(12.dp)
-            )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = 4.dp),
+        shape     = RoundedCornerShape(12.dp),
+        colors    = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = if (isCurrentUser)
+                AccentCyan.copy(0.08f)
+            else
+                androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border    = if (isCurrentUser)
+            androidx.compose.foundation.BorderStroke(1.dp, AccentCyan.copy(0.4f))
+        else null
+    ) {
+    Row(
+        modifier          = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Rank badge
@@ -668,5 +668,6 @@ private fun LeaderboardRow(
 
         Spacer(Modifier.width(6.dp))
         Icon(Icons.Rounded.ArrowForwardIos, null, tint = TextMuted, modifier = Modifier.size(10.dp))
+    }
     }
 }
