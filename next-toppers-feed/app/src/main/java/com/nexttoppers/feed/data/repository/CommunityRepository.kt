@@ -192,6 +192,13 @@ class CommunityRepository @Inject constructor(
         postsCol.document(postId).delete().await()
     }
 
+    suspend fun updatePost(postId: String, newContent: String): Result<Unit> = runCatching {
+        postsCol.document(postId).update(mapOf(
+            "text"    to newContent,
+            "content" to newContent
+        )).await()
+    }
+
     suspend fun reportPost(postId: String, reason: String): Result<Unit> = runCatching {
         val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not authenticated"))
         firestore.collection("reports").add(mapOf(

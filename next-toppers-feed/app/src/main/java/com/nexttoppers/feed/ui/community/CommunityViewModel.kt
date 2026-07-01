@@ -42,6 +42,12 @@ class CommunityViewModel @Inject constructor(
     private val _isSending = MutableStateFlow(false)
     val isSending: StateFlow<Boolean> = _isSending
 
+    private val _replyTo = MutableStateFlow<CommunityPost?>(null)
+    val replyTo: StateFlow<CommunityPost?> = _replyTo
+
+    private val _editTarget = MutableStateFlow<CommunityPost?>(null)
+    val editTarget: StateFlow<CommunityPost?> = _editTarget
+
     val currentUid: String get() = authRepository.currentUser?.uid ?: ""
 
     private var postsJob: Job? = null
@@ -56,7 +62,7 @@ class CommunityViewModel @Inject constructor(
             communityRepository.observePosts(filterType = _selectedFilter.value).collect { result ->
                 result
                     .onSuccess { posts -> _uiState.value = CommunityUiState.Success(posts) }
-                    .onFailure { err -> _uiState.value = CommunityUiState.Error(err.message ?: "Failed to load") }
+                    .onFailure { err  -> _uiState.value = CommunityUiState.Error(err.message ?: "Failed to load") }
             }
         }
     }
@@ -67,16 +73,50 @@ class CommunityViewModel @Inject constructor(
         observePosts()
     }
 
-    fun setMessageInput(text: String) {
-        _messageInput.value = text
+    fun setMessageInput(text: String) { _messageInput.value = text }
+
+    fun setReplyTo(post: CommunityPost?) {
+        _replyTo.value   = post
+        _editTarget.value = null
+        if (post != null) _messageInput.value = "@${post.username} "
+    }
+
+    fun clearReply() {
+        _replyTo.value    = null
+        _messageInput.value = ""
+    }
+
+    fun startEdit(post: CommunityPost) {
+        _editTarget.value  = post
+        _replyTo.value     = null
+        _messageInput.value = post.content
+    }
+
+    fun cancelEdit() {
+        _editTarget.value   = null
+        _messageInput.value = ""
     }
 
     fun sendQuickMessage() {
         val text = _messageInput.value.trim()
-        val uid = currentUid
+        val uid  = currentUid
         if (text.isBlank() || uid.isEmpty() || _isSending.value) return
-        _isSending.value = true
+
+        val editPost = _editTarget.value
+        if (editPost != null) {
+            _isSending.value    = true
+            _messageInput.value = ""
+            _editTarget.value   = null
+            viewModelScope.launch {
+                communityRepository.updatePost(editPost.postId, text)
+                _isSending.value = false
+            }
+            return
+        }
+
+        _isSending.value    = true
         _messageInput.value = ""
+        _replyTo.value      = null
         viewModelScope.launch {
             try {
                 val user = userRepository.getUser(uid).getOrNull()
@@ -105,6 +145,12 @@ class CommunityViewModel @Inject constructor(
             kotlinx.coroutines.delay(400)
             _likeAnimations.value = _likeAnimations.value - post.postId
         }
+    }
+
+    fun react(post: CommunityPost) = toggleLike(post)
+
+    fun editPost(postId: String, newContent: String) {
+        viewModelScope.launch { communityRepository.updatePost(postId, newContent) }
     }
 
     fun deletePost(postId: String) {

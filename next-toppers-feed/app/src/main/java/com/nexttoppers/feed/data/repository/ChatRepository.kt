@@ -247,4 +247,13 @@ class ChatRepository @Inject constructor(
                 "timestamp"  to Timestamp.now()
             )).await()
         }
+
+    suspend fun updateMessage(chatId: String, messageId: String, newText: String): Result<Unit> =
+        runCatching {
+            privateChatsCol.document(chatId)
+                .collection("messages")
+                .document(messageId)
+                .update(mapOf("message" to newText))
+                .await()
+        }
 }

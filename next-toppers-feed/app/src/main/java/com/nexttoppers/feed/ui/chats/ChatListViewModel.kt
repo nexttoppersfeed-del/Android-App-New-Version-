@@ -3,6 +3,7 @@ package com.nexttoppers.feed.ui.chats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexttoppers.feed.data.model.Chat
+import com.nexttoppers.feed.data.model.User
 import com.nexttoppers.feed.data.repository.AuthRepository
 import com.nexttoppers.feed.data.repository.ChatRepository
 import com.nexttoppers.feed.data.repository.UserRepository
@@ -31,13 +32,22 @@ class ChatListViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
-    private val _allChats    = MutableStateFlow<List<Chat>>(emptyList())
+    private val _allChats = MutableStateFlow<List<Chat>>(emptyList())
 
     private val _totalUnread = MutableStateFlow(0)
     val totalUnread: StateFlow<Int> = _totalUnread
 
     private val _pendingNavigation = MutableStateFlow<String?>(null)
     val pendingNavigation: StateFlow<String?> = _pendingNavigation
+
+    private val _isFirstLoad = MutableStateFlow(true)
+    val isFirstLoad: StateFlow<Boolean> = _isFirstLoad
+
+    private val _userSearchResults = MutableStateFlow<List<User>>(emptyList())
+    val userSearchResults: StateFlow<List<User>> = _userSearchResults
+
+    private val _isSearchingUsers = MutableStateFlow(false)
+    val isSearchingUsers: StateFlow<Boolean> = _isSearchingUsers
 
     val currentUid: String get() = authRepository.currentUser?.uid ?: ""
 
@@ -49,11 +59,13 @@ class ChatListViewModel @Inject constructor(
     private fun observeChats() {
         val uid = currentUid
         if (uid.isEmpty()) {
+            _isFirstLoad.value = false
             _uiState.value = ChatListUiState.Success(emptyList())
             return
         }
         viewModelScope.launch {
             chatRepository.observeUserChats(uid).collect { result ->
+                _isFirstLoad.value = false
                 result
                     .onSuccess { chats ->
                         val enriched = enrichParticipantNames(chats, uid)
@@ -101,7 +113,7 @@ class ChatListViewModel @Inject constructor(
     }
 
     private fun applySearch(query: String, chats: List<Chat>) {
-        val uid      = currentUid
+        val uid = currentUid
         _totalUnread.value = chats.sumOf { it.getUnreadCount(uid) }
         val filtered = if (query.isBlank()) chats
         else chats.filter { chat ->
@@ -118,6 +130,22 @@ class ChatListViewModel @Inject constructor(
         return _allChats.value.sumOf { it.getUnreadCount(uid) }
     }
 
+    fun searchUsers(query: String) {
+        if (query.length < 2) {
+            _userSearchResults.value = emptyList()
+            return
+        }
+        _isSearchingUsers.value = true
+        viewModelScope.launch {
+            userRepository.searchUsers(query)
+                .onSuccess { users -> _userSearchResults.value = users.filter { it.uid != currentUid } }
+                .onFailure   { _userSearchResults.value = emptyList() }
+            _isSearchingUsers.value = false
+        }
+    }
+
+    fun clearUserSearch() { _userSearchResults.value = emptyList() }
+
     fun openDm(otherUid: String) {
         val myUid = currentUid
         if (myUid.isEmpty() || otherUid.isEmpty() || otherUid == myUid) return
@@ -125,9 +153,9 @@ class ChatListViewModel @Inject constructor(
             val myUser    = userRepository.getUser(myUid).getOrNull() ?: return@launch
             val otherUser = userRepository.getUser(otherUid).getOrNull() ?: return@launch
             val chatId = chatRepository.getOrCreatePrivateChat(
-                myUid    = myUid,
-                myName   = myUser.name,
-                myPhoto  = myUser.photoURL,
+                myUid      = myUid,
+                myName     = myUser.name,
+                myPhoto    = myUser.photoURL,
                 otherUid   = otherUid,
                 otherName  = otherUser.name,
                 otherPhoto = otherUser.photoURL
@@ -136,7 +164,5 @@ class ChatListViewModel @Inject constructor(
         }
     }
 
-    fun consumeNavigation() {
-        _pendingNavigation.value = null
-    }
+    fun consumeNavigation() { _pendingNavigation.value = null }
 }

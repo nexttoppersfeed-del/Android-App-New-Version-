@@ -43,8 +43,14 @@ class ChatViewModel @Inject constructor(
     private val _isSending = MutableStateFlow(false)
     val isSending: StateFlow<Boolean> = _isSending
 
-    private val _currentChat = MutableStateFlow<Chat?>(null)
-    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    private val _replyTo = MutableStateFlow<ChatMessage?>(null)
+    val replyTo: StateFlow<ChatMessage?> = _replyTo
+
+    private val _editTarget = MutableStateFlow<ChatMessage?>(null)
+    val editTarget: StateFlow<ChatMessage?> = _editTarget
+
+    private val _currentChat  = MutableStateFlow<Chat?>(null)
+    private val _messages     = MutableStateFlow<List<ChatMessage>>(emptyList())
 
     val currentUid: String get() = authRepository.currentUser?.uid ?: ""
 
@@ -81,11 +87,11 @@ class ChatViewModel @Inject constructor(
         for (otherId in missingUids) {
             userRepository.getUser(otherId)
                 .onSuccess { user ->
-                    if (user.name.isNotBlank()) resolvedNames[otherId]  = user.name
-                    if (user.photoURL.isNotBlank()) resolvedPhotos[otherId] = user.photoURL
+                    if (user.name.isNotBlank())     resolvedNames[otherId]  = user.name
+                    if (user.photoURL.isNotBlank())  resolvedPhotos[otherId] = user.photoURL
                 }
                 .onFailure { err ->
-    AppLogger.w("ChatViewModel", "Could not resolve user $otherId: ${err.message}")
+                    AppLogger.w("ChatViewModel", "Could not resolve user $otherId: ${err.message}")
                 }
         }
 
@@ -123,30 +129,70 @@ class ChatViewModel @Inject constructor(
 
     fun setMessageInput(text: String) { _messageInput.value = text }
 
+    fun setReplyTo(message: ChatMessage?) {
+        _replyTo.value = message
+        _editTarget.value = null
+    }
+
+    fun startEdit(message: ChatMessage) {
+        _editTarget.value = message
+        _messageInput.value = message.message
+        _replyTo.value = null
+    }
+
+    fun cancelEdit() {
+        _editTarget.value = null
+        _messageInput.value = ""
+    }
+
     fun sendMessage() {
-        val uid = currentUid
+        val uid  = currentUid
         val text = _messageInput.value.trim()
         if (uid.isEmpty() || text.isEmpty() || _isSending.value) return
 
+        val editMsg = _editTarget.value
+        if (editMsg != null) {
+            _isSending.value = true
+            viewModelScope.launch {
+                chatRepository.updateMessage(chatId, editMsg.messageId, text)
+                _messageInput.value = ""
+                _editTarget.value   = null
+                _isSending.value    = false
+            }
+            return
+        }
+
         _isSending.value = true
         viewModelScope.launch {
-            val user = userRepository.getUser(uid).getOrNull()
+            val user    = userRepository.getUser(uid).getOrNull()
+            val reply   = _replyTo.value
+            val fullText = if (reply != null)
+                "↩ ${reply.senderName}: ${reply.message.take(60)}\n$text"
+            else text
+
             val message = ChatMessage(
                 messageId  = UUID.randomUUID().toString(),
                 senderId   = uid,
                 senderName = user?.name ?: "Student",
-                message    = text,
+                message    = fullText,
                 timestamp  = Timestamp.now(),
                 type       = MessageType.TEXT.name
             )
             chatRepository.sendMessage(chatId, message)
-                .onSuccess { _messageInput.value = "" }
+                .onSuccess {
+                    _messageInput.value = ""
+                    _replyTo.value      = null
+                }
             _isSending.value = false
         }
     }
 
     fun deleteMessage(messageId: String) {
         viewModelScope.launch { chatRepository.deleteMessage(chatId, messageId) }
+    }
+
+    fun editMessage(messageId: String, newText: String) {
+        viewModelScope.launch { chatRepository.updateMessage(chatId, messageId, newText) }
     }
 
     fun reportMessage(messageId: String, reason: String = "Inappropriate content") {

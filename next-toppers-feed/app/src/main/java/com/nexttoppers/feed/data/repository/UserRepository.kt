@@ -199,4 +199,25 @@ class UserRepository @Inject constructor(
             lastActive   = todayString
         )
     }
+
+    suspend fun searchUsers(query: String, limit: Int = 15): Result<List<User>> = runCatching {
+        if (query.isBlank()) return@runCatching emptyList()
+        val q = query.trim()
+        val snap = usersCollection
+            .orderBy("name")
+            .startAt(q).endAt(q + "\uf8ff")
+            .limit(limit.toLong())
+            .get().await()
+        snap.documents.mapNotNull { doc ->
+            try {
+                doc.toObject(User::class.java)?.copy(
+                    uid        = doc.id,
+                    lastActive = doc.resolveLastActive(),
+                    lastSeen   = doc.resolveTimestamp("lastSeen"),
+                    createdAt  = doc.resolveTimestamp("createdAt"),
+                    updatedAt  = doc.resolveTimestamp("updatedAt")
+                )
+            } catch (_: Exception) { null }
+        }
+    }
 }
