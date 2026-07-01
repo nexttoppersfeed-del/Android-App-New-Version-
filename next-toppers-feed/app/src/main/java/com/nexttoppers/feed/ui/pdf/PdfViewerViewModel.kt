@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Inject
 
@@ -85,17 +86,12 @@ class PdfViewerViewModel @Inject constructor(
 
                     fileUrl.isNotEmpty() -> {
                         // Stream from URL → temp cache
+                        // downloadToCache throws with a descriptive message on failure
                         _state.value = PdfViewerState.Downloading
                         val tempFile = downloadToCache(fileUrl)
-                        if (tempFile != null) {
-                            tempCacheFile = tempFile
-                            _resolvedPath.value = tempFile.absolutePath
-                            openFromFile(tempFile)
-                        } else {
-                            _state.value = PdfViewerState.Error(
-                                "Cannot load PDF.\nCheck your internet connection and try again."
-                            )
-                        }
+                        tempCacheFile = tempFile
+                        _resolvedPath.value = tempFile.absolutePath
+                        openFromFile(tempFile)
                     }
 
                     else -> {
@@ -115,23 +111,66 @@ class PdfViewerViewModel @Inject constructor(
         _state.value = PdfViewerState.Ready(pdfRenderer!!.pageCount)
     }
 
-    private suspend fun downloadToCache(url: String): File? = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val cacheDir = File(context.cacheDir, "pdf_cache")
-            cacheDir.mkdirs()
-            val fileName = "pdf_${resourceId.ifBlank { System.currentTimeMillis().toString() }}.pdf"
-            val file = File(cacheDir, fileName)
+    /**
+     * Downloads [url] to a temp cache file and returns it, or throws on failure.
+     *
+     * Uses [HttpURLConnection] with manual redirect following so that:
+     *   • HTTP → HTTPS redirects work (Java's built-in only follows same-protocol redirects)
+     *   • Firebase Storage signed URLs that redirect to CDN hosts are resolved correctly
+     *
+     * Throws an [Exception] with a descriptive message instead of returning null so the
+     * caller can surface a useful error state instead of a generic "cannot load" message.
+     */
+    private suspend fun downloadToCache(url: String): File = withContext(Dispatchers.IO) {
+        val cacheDir = File(context.cacheDir, "pdf_cache")
+        cacheDir.mkdirs()
+        val fileName = "pdf_${resourceId.ifBlank { System.currentTimeMillis().toString() }}.pdf"
+        val file = File(cacheDir, fileName)
 
-            // If cached version exists and is non-zero, reuse it
-            if (file.exists() && file.length() > 0) return@withContext file
+        // Re-use a fully-downloaded cached file
+        if (file.exists() && file.length() > 0) return@withContext file
 
-            val connection = URL(url).openConnection()
-            connection.connectTimeout = 15_000
-            connection.readTimeout    = 60_000
-            connection.connect()
-            val total = connection.contentLength.toLong()
+        // Follow up to 5 redirects manually (handles HTTP→HTTPS hops).
+        // `repeat` can't break mid-loop, so use a counted while loop instead.
+        var currentUrl = url
+        var activeConn: HttpURLConnection? = null
+        var redirectsLeft = 5
+        while (redirectsLeft-- > 0) {
+            val c = URL(currentUrl).openConnection() as HttpURLConnection
+            c.connectTimeout          = 15_000
+            c.readTimeout             = 60_000
+            c.instanceFollowRedirects = false   // handle cross-protocol redirects manually
+            c.connect()
 
-            connection.getInputStream().use { input ->
+            val code = c.responseCode
+            when {
+                code in 300..399 -> {
+                    // Redirect — follow Location header and loop
+                    val location = c.getHeaderField("Location")
+                    c.disconnect()
+                    if (location.isNullOrEmpty())
+                        throw Exception("Redirect with no Location header (HTTP $code)")
+                    currentUrl = if (location.startsWith("http")) location
+                                 else URL(URL(currentUrl), location).toString()
+                }
+                code in 200..299 -> {
+                    // Success — keep this connection and exit loop
+                    activeConn = c
+                    break
+                }
+                else -> {
+                    c.disconnect()
+                    throw Exception("Server returned HTTP $code for PDF URL")
+                }
+            }
+        }
+
+        val conn = activeConn
+            ?: throw Exception("Too many redirects — cannot load PDF")
+
+        val total = conn.contentLength.toLong()
+        try {
+            conn.inputStream.use { input ->
                 file.outputStream().use { output ->
                     val buffer = ByteArray(8 * 1024)
                     var downloaded = 0L
@@ -145,11 +184,17 @@ class PdfViewerViewModel @Inject constructor(
                     }
                 }
             }
-            _downloadProgress.value = 100
-            file
-        } catch (e: Exception) {
-            null
+        } finally {
+            conn.disconnect()
         }
+
+        if (file.length() == 0L) {
+            file.delete()
+            throw Exception("Downloaded file is empty — the URL may have expired")
+        }
+
+        _downloadProgress.value = 100
+        file
     }
 
     /**

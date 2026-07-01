@@ -66,9 +66,18 @@ class ResourceDetailViewModel @Inject constructor(
 
     private fun checkLocalFile() {
         viewModelScope.launch {
-            val path = offlineRepository.downloads.first()
-                .firstOrNull { it.id == resourceId }?.localPath
-            _localPath.value = path
+            val record = offlineRepository.downloads.first()
+                .firstOrNull { it.id == resourceId }
+            val path = record?.localPath
+            if (path != null && java.io.File(path).exists()) {
+                // File is on disk — safe to use
+                _localPath.value = path
+            } else if (path != null) {
+                // DataStore has a record but the file was deleted from disk.
+                // Remove the stale entry so the user can re-download cleanly.
+                offlineRepository.removeDownload(resourceId)
+                _localPath.value = null
+            }
         }
     }
 

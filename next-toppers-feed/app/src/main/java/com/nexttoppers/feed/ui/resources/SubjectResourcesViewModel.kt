@@ -200,6 +200,15 @@ class SubjectResourcesViewModel @Inject constructor(
         } else emptyList()
 
         _displayFolders.value = folderItems + virtualItems
+
+        // Update _uiState so the screen exits Loading when we are in folder-grid mode.
+        // Without this, an empty displayFolders list would show skeleton cards forever.
+        if (_uiState.value is SubjectResourcesUiState.Loading) {
+            _uiState.value = if ((folderItems + virtualItems).isEmpty())
+                SubjectResourcesUiState.Empty
+            else
+                SubjectResourcesUiState.Success(allItems)
+        }
     }
 
     // ── Type-based fallback ────────────────────────────────────────────────────
@@ -230,6 +239,14 @@ class SubjectResourcesViewModel @Inject constructor(
                 isRealFolder = false,
                 typeFolder   = type
             )
+        }
+
+        // Update _uiState so the screen exits Loading when we are in folder-grid mode.
+        if (_uiState.value is SubjectResourcesUiState.Loading) {
+            _uiState.value = if (grouped.isEmpty())
+                SubjectResourcesUiState.Empty
+            else
+                SubjectResourcesUiState.Success(allItems)
         }
     }
 

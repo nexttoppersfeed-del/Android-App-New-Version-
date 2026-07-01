@@ -58,7 +58,13 @@ class ResourcesRepository @Inject constructor(
                 fileUrl      = data["url"] as? String
                                ?: data["downloadUrl"] as? String
                                ?: data["fileUrl"] as? String
-                               ?: data["resourceUrl"] as? String ?: "",
+                               ?: data["resourceUrl"] as? String
+                               ?: data["pdfUrl"] as? String
+                               ?: data["pdf_url"] as? String
+                               ?: data["file_url"] as? String
+                               ?: data["storageUrl"] as? String
+                               ?: data["link"] as? String
+                               ?: data["filePath"] as? String ?: "",
                 // F06: website uses "isPremium" — check it first, fall back to "premium"
                 premium      = data["isPremium"] as? Boolean
                                ?: data["premium"] as? Boolean ?: false,
